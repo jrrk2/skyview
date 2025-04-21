@@ -1,3 +1,4 @@
+#include "MessierCatalog.h" // Include the generated header
 #include "skyviewcontroller.h"
 #include <QtMath>
 #include <QVariantMap>
@@ -22,15 +23,13 @@ SkyViewController::SkyViewController(QObject *parent)
     connect(m_sensorBridge, &IOSSensorBridge::locationAuthorizationChanged, this, &SkyViewController::onLocationAuthorizationChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationMetadataChanged, this, &SkyViewController::onLocationMetadataChanged);
     
-    // Set default location (can be updated with GPS)
-    m_location = GeoCoordinate(37.7749, -122.4194); // San Francisco
-    
     // Load some default DSOs
     loadDefaultDSOs();
 }
 
 SkyViewController::~SkyViewController()
 {
+    delete m_location;
     stopSensors();
 }
 
@@ -51,13 +50,26 @@ QVariantList SkyViewController::visibleDSOs() const
 
 GeoCoordinate SkyViewController::location() const
 {
-    return m_location;
+    // Set default location (can be updated with GPS)
+  return (m_location != nullptr ?
+	  *m_location :
+	  GeoCoordinate(0, 0)); // Off Africa coast
 }
 
 void SkyViewController::setLocation(const GeoCoordinate &location)
 {
-    if (m_location != location) {
-        m_location = location;
+    bool changed = true;
+    
+    if (m_location != nullptr) {
+        changed = (*m_location != location);
+    }
+    
+    if (changed) {
+        // Delete old location if it exists
+        delete m_location;
+        
+        // Create new location
+        m_location = new GeoCoordinate(location);
         
         // If we're manually setting the location, switch to manual mode
         if (!m_manualLocationMode) {
@@ -69,7 +81,7 @@ void SkyViewController::setLocation(const GeoCoordinate &location)
         updateVisibleDSOs();
     }
 }
-
+  
 bool SkyViewController::isGPSEnabled() const
 {
     return !m_manualLocationMode && m_sensorBridge->isLocationAuthorized();
@@ -118,7 +130,7 @@ void SkyViewController::useManualLocation(bool manual)
             // Switching to GPS mode, check if we have a recent GPS location
             GeoCoordinate lastGpsLocation = m_sensorBridge->location();
             if (lastGpsLocation.isValid()) {
-                m_location = lastGpsLocation;
+                m_location = &lastGpsLocation;
                 emit locationChanged();
                 updateVisibleDSOs();
             }
@@ -142,7 +154,7 @@ void SkyViewController::requestLocationPermission()
     startSensors();
 }
 
-void SkyViewController::addCustomDSO(const QString &name, double ra, double dec, const QUrl &imageUrl)
+void SkyViewController::addCustomDSO(const QString &name, double ra, double dec, const QUrl &imageUrl, double size)
 {
     // Add a custom DSO to the database
     DSOObject dso;
@@ -155,37 +167,42 @@ void SkyViewController::addCustomDSO(const QString &name, double ra, double dec,
     updateVisibleDSOs();
 }
 
+// Updated loadDefaultDSOs method that uses the converted MessierCatalog
 void SkyViewController::loadDefaultDSOs()
 {
     // Clear existing objects
     m_dsoObjects.clear();
     
-    // Add some common DSOs as examples
-    // These would be replaced with your custom DSOs
+    // Load data from the C++ MessierCatalog
+    for (const MessierObject& messierObj : MessierCatalog) {
+        DSOObject dso;
+        
+        // Set basic properties
+        dso.name = QString::fromStdString(messierObj.name);
+        if (!messierObj.commonName.empty()) {
+            dso.name += " - " + QString::fromStdString(messierObj.commonName);
+        }
+        
+        dso.rightAscension = messierObj.raHours;
+        dso.declination = messierObj.decDegrees;
+        
+        // Get the larger dimension for scaling
+        dso.angularSize = std::max(messierObj.sizeArcminWidth, messierObj.sizeArcminHeight);
+        
+        // Set image URL based on Messier number (e.g., "M31" -> "m31.jpg")
+        QString id = QString::fromStdString(messierObj.name).toLower();
+        dso.imageUrl = QUrl("qrc:/images/" + id + ".jpg");
+        
+        // Add to our collection
+        m_dsoObjects.append(dso);
+        
+        qDebug() << "Loaded" << dso.name << "RA:" << dso.rightAscension 
+                 << "Dec:" << dso.declination << "Size:" << dso.angularSize;
+    }
     
-    // Messier objects examples
-    DSOObject m31; // Andromeda Galaxy
-    m31.name = "M31 - Andromeda Galaxy";
-    m31.rightAscension = 0.71; // 0h 42m in decimal hours
-    m31.declination = 41.27;   // 41° 16'
-    m31.imageUrl = QUrl("qrc:/images/m31.jpg");
-    m_dsoObjects.append(m31);
+    qDebug() << "Loaded" << m_dsoObjects.size() << "Messier objects";
     
-    DSOObject m42; // Orion Nebula
-    m42.name = "M42 - Orion Nebula";
-    m42.rightAscension = 5.59; // 5h 35m
-    m42.declination = -5.39;   // -5° 23'
-    m42.imageUrl = QUrl("qrc:/images/m42.jpg");
-    m_dsoObjects.append(m42);
-    
-    DSOObject m51; // Whirlpool Galaxy
-    m51.name = "M51 - Whirlpool Galaxy";
-    m51.rightAscension = 13.50; // 13h 30m
-    m51.declination = 47.19;    // 47° 11'
-    m51.imageUrl = QUrl("qrc:/images/m51.jpg");
-    m_dsoObjects.append(m51);
-    
-    // Update the visible objects based on current orientation
+    // Update the UI
     updateVisibleDSOs();
 }
 
@@ -242,7 +259,20 @@ void SkyViewController::onLocationChanged(GeoCoordinate location)
 {
     // Only update location if we're not in manual mode
     if (!m_manualLocationMode) {
-        m_location = location;
+        bool isFirstLocation = (m_location == nullptr);
+        
+        // Delete old location if it exists
+        delete m_location;
+        
+        // Create new location
+        m_location = new GeoCoordinate(location);
+        
+        // First location update
+        if (isFirstLocation) {
+            m_locationStatus = "GPS location acquired";
+            emit locationStatusChanged(m_locationStatus);
+        }
+        
         emit locationChanged();
         updateVisibleDSOs();
     }
@@ -283,15 +313,18 @@ void SkyViewController::onLocationMetadataChanged()
     emit locationMetadataChanged();
 }
 
-// Updated updateVisibleDSOs method for SkyViewController.cpp
-
 void SkyViewController::updateVisibleDSOs()
 {
+   if (m_location == nullptr) {
+        qDebug() << "Skipping updateVisibleDSOs() - waiting for valid location";
+        return;
+    }
+
     // Clear the current list of visible objects
     m_visibleDSOs.clear();
     
     // Update astronomy calculator with current time and location
-    m_astronomyCalculator.setLocation(m_location);
+    m_astronomyCalculator.setLocation(*m_location);
     m_astronomyCalculator.setDateTime(QDateTime::currentDateTimeUtc());
     
     // Calculate the RA and DEC of the center of view
@@ -306,6 +339,9 @@ void SkyViewController::updateVisibleDSOs()
         emit declinationChanged(m_declination);
     }
     
+    // Use a wide field of view for testing
+    const double testFieldOfView = 50.0; // 90 degrees - large portion of the sky
+    
     // Check each DSO to see if it should be displayed
     for (const DSOObject &dso : m_dsoObjects) {
         double dsoAzimuth, dsoAltitude;
@@ -317,10 +353,18 @@ void SkyViewController::updateVisibleDSOs()
         double angularSeparation = m_astronomyCalculator.angularSeparation(
             m_azimuth, m_altitude, dsoAzimuth, dsoAltitude);
         
-        // Use a much wider field of view for testing
-        const double testFieldOfView = 120.0; // 120 degrees - almost 1/3 of the sky
+        // Scale factor based on angular size - normalize to display well
+        // Minimum size ensures small objects are still visible
+        // Angular sizes in catalog are in arcminutes (1/60 of a degree)
+        const double minSize = 30.0;  // Minimum display size (pixels)
+        const double maxSize = 300.0; // Maximum display size (pixels)
         
-        // If the DSO is within our field of view or we're using test mode, add it to visible list
+        // Convert arcminutes to degrees and scale
+        double sizeScaleFactor = dso.angularSize / 60.0 * 10.0; // Scale factor
+        // Apply log scaling for better distribution of sizes
+        double displaySize = 400.0; // qMin(maxSize, minSize + 50.0 * log10(1.0 + sizeScaleFactor));
+        
+        // If the DSO is within our wide field of view, add it to visible list
         if (angularSeparation <= testFieldOfView / 2.0) {
             QVariantMap dsoMap;
             dsoMap["name"] = dso.name;
@@ -329,28 +373,27 @@ void SkyViewController::updateVisibleDSOs()
             dsoMap["imageUrl"] = dso.imageUrl;
             dsoMap["azimuth"] = dsoAzimuth;
             dsoMap["altitude"] = dsoAltitude;
+            dsoMap["angularSize"] = dso.angularSize;  // Original size in arcminutes
+            dsoMap["displaySize"] = displaySize;      // Scaled size for display
             
-            // Calculate position in view coordinates (0 to 1 range for direct QML positioning)
+            // Calculate position in view coordinates (-1 to 1 range)
             // Calculate azimuth difference properly across the 0/360 boundary
             double azDiff = dsoAzimuth - m_azimuth;
             if (azDiff > 180) azDiff -= 360;
             if (azDiff < -180) azDiff += 360;
             
             // Convert angular difference to normalized screen coordinates
-            // Negative values because sky coordinates work opposite to screen coordinates
-            // X = -azDiff / FOV scaled from -1 to 1
-            // Y = -altDiff / FOV scaled from -1 to 1
             double normAzDiff = -azDiff / (testFieldOfView / 2.0);
             double normAltDiff = -(dsoAltitude - m_altitude) / (testFieldOfView / 2.0);
             
-            // Clamp values to ensure they're in display range
+            // Clamp values to ensure they're in display range (-0.9 to 0.9)
             normAzDiff = qBound(-0.9, normAzDiff, 0.9);
             normAltDiff = qBound(-0.9, normAltDiff, 0.9);
             
             dsoMap["viewX"] = normAzDiff;
             dsoMap["viewY"] = normAltDiff;
             
-            // For debugging, add some useful data
+            // For debugging, add angular separation
             dsoMap["angularDistance"] = angularSeparation;
             
             m_visibleDSOs.append(dsoMap);

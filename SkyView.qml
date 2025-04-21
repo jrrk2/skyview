@@ -1,4 +1,4 @@
-// SkyView.qml with fixed layering
+// Updated SkyView.qml with size scaling for DSOs
 import QtQuick
 
 Item {
@@ -58,8 +58,10 @@ Item {
                 x: (modelData.viewX + 1) * parent.width / 2
                 y: (modelData.viewY + 1) * parent.height / 2
                 
-                width: 100  // Fixed size for now
-                height: 100
+                // Size based on angular size of the object
+                // This uses the displaySize calculated in the controller
+                width: modelData.displaySize || 100
+                height: modelData.displaySize || 100
                 
                 // Center the object
                 transform: Translate {
@@ -67,7 +69,7 @@ Item {
                     y: -height / 2
                 }
                 
-                // Use a Rectangle as a background for the DSO
+                // Use a Rectangle as a background/fallback for the DSO
                 Rectangle {
                     id: dsoBackground
                     anchors.fill: parent
@@ -76,13 +78,13 @@ Item {
                     border.width: 1
                     border.color: "#8080FF"
                     opacity: 0.5
-                    visible: true // Always visible as a fallback
+                    visible: !dsoImage.visible || dsoImage.status !== Image.Ready
                 }
                 
                 Image {
                     id: dsoImage
                     anchors.fill: parent
-                    source: modelData.imageUrl
+                    source: modelData.imageUrl || ""
                     fillMode: Image.PreserveAspectFit
                     opacity: 0.9
                     visible: status === Image.Ready || status === Image.Loading
@@ -115,74 +117,28 @@ Item {
                     style: Text.Outline
                     styleColor: "#000000"
                 }
+                
+                // Optional: Show angular size for debugging
+                Text {
+                    anchors.horizontalCenter: dsoImage.horizontalCenter
+                    anchors.bottom: dsoImage.top
+                    anchors.bottomMargin: 2
+                    text: modelData.angularSize ? modelData.angularSize.toFixed(1) + "'" : ""
+                    color: "#AAAAFF"
+                    font.pixelSize: 10
+                    style: Text.Outline
+                    styleColor: "#000000"
+                    visible: false // Set to true for debugging
+                }
             }
         }
     }
     
-    // Place UI elements above both stars and DSOs
+    // UI elements (compass, etc) - same as before
     Item {
         id: uiContainer
         anchors.fill: parent
         z: 4
-        
-        // Allow mouse and touch interaction for manual exploration
-        MouseArea {
-            anchors.fill: parent
-            
-            property real lastX: 0
-            property real lastY: 0
-            property bool dragging: false
-            
-            onPressed: {
-                lastX = mouse.x
-                lastY = mouse.y
-                dragging = true
-            }
-            
-            onReleased: {
-                dragging = false
-            }
-            
-            onPositionChanged: {
-                if (dragging) {
-                    // Manual adjustment of view
-                    // Calculate change in mouse position
-                    var deltaX = mouse.x - lastX
-                    var deltaY = mouse.y - lastY
-                    
-                    // Update last position
-                    lastX = mouse.x
-                    lastY = mouse.y
-                    
-                    // Visual feedback
-                    overlaySkyView.opacity = 0.5
-                    overlaySkyView.x += deltaX * 0.1
-                    overlaySkyView.y += deltaY * 0.1
-                    
-                    // Reset overlay after a short delay
-                    resetTimer.restart()
-                }
-            }
-        }
-        
-        // Overlay to provide visual feedback during manual exploration
-        Rectangle {
-            id: overlaySkyView
-            anchors.fill: parent
-            color: "transparent"
-            opacity: 0
-            
-            // Timing for resetting overlay
-            Timer {
-                id: resetTimer
-                interval: 300
-                onTriggered: {
-                    overlaySkyView.opacity = 0
-                    overlaySkyView.x = 0
-                    overlaySkyView.y = 0
-                }
-            }
-        }
         
         // Compass direction indicator
         Item {
@@ -295,6 +251,71 @@ Item {
                     color: "#FFFFFF"
                     font.pixelSize: 10
                 }
+            }
+        }
+    }
+    
+    // Allow mouse and touch interaction for manual exploration
+    MouseArea {
+        anchors.fill: parent
+        z: 5 // Above everything else
+        
+        property real lastX: 0
+        property real lastY: 0
+        property bool dragging: false
+        
+        onPressed: {
+            lastX = mouse.x
+            lastY = mouse.y
+            dragging = true
+        }
+        
+        onReleased: {
+            dragging = false
+        }
+        
+        onPositionChanged: {
+            if (dragging) {
+                // Manual adjustment of view
+                // This is a simplified implementation, in a real app
+                // you would adjust the SkyViewController's azimuth/altitude
+                // based on the drag distance and direction
+                
+                // Calculate change in mouse position
+                var deltaX = mouse.x - lastX
+                var deltaY = mouse.y - lastY
+                
+                // Update last position
+                lastX = mouse.x
+                lastY = mouse.y
+                
+                // Visual feedback
+                overlaySkyView.opacity = 0.5
+                overlaySkyView.x += deltaX * 0.1
+                overlaySkyView.y += deltaY * 0.1
+                
+                // Reset overlay after a short delay
+                resetTimer.restart()
+            }
+        }
+    }
+    
+    // Overlay to provide visual feedback during manual exploration
+    Rectangle {
+        id: overlaySkyView
+        anchors.fill: parent
+        z: 6 // On top of everything
+        color: "transparent"
+        opacity: 0
+        
+        // Timing for resetting overlay
+        Timer {
+            id: resetTimer
+            interval: 300
+            onTriggered: {
+                overlaySkyView.opacity = 0
+                overlaySkyView.x = 0
+                overlaySkyView.y = 0
             }
         }
     }
