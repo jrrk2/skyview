@@ -1,4 +1,4 @@
-// Updated SkyView.qml with size scaling for DSOs
+// Modified SkyView.qml with cropped images
 import QtQuick
 
 Item {
@@ -13,7 +13,7 @@ Item {
     Rectangle {
         id: skyBackground
         anchors.fill: parent
-        z: 1 // Set explicit z-order
+        z: 1
         gradient: Gradient {
             GradientStop { position: 0.0; color: "#000020" }  // Deep space blue at top
             GradientStop { position: 1.0; color: "#000000" }  // Black at bottom
@@ -24,7 +24,7 @@ Item {
     Item {
         id: starField
         anchors.fill: parent
-        z: 2 // Set explicit z-order
+        z: 2
         
         Repeater {
             model: 200  // Number of stars
@@ -45,7 +45,7 @@ Item {
     Item {
         id: dsoContainer
         anchors.fill: parent
-        z: 3 // Make sure DSOs appear above the star field
+        z: 3
         
         Repeater {
             id: dsoRepeater
@@ -58,10 +58,9 @@ Item {
                 x: (modelData.viewX + 1) * parent.width / 2
                 y: (modelData.viewY + 1) * parent.height / 2
                 
-                // Size based on angular size of the object
-                // This uses the displaySize calculated in the controller
-                width: modelData.displaySize || 100
-                height: modelData.displaySize || 100
+                // Use smaller size to allow more DSOs on screen
+                width: modelData.displaySize ? modelData.displaySize * 0.6 : 60
+                height: modelData.displaySize ? modelData.displaySize * 0.6 : 60
                 
                 // Center the object
                 transform: Translate {
@@ -69,72 +68,63 @@ Item {
                     y: -height / 2
                 }
                 
-                // Use a Rectangle as a background/fallback for the DSO
-                Rectangle {
-                    id: dsoBackground
+                // Create a clipping container for the image
+                Item {
+                    id: imageClip
                     anchors.fill: parent
-                    color: "transparent"
-                    radius: width / 2
-                    border.width: 1
-                    border.color: "#8080FF"
-                    opacity: 0.5
-                    visible: !dsoImage.visible || dsoImage.status !== Image.Ready
-                }
-                
-                Image {
-                    id: dsoImage
-                    anchors.fill: parent
-                    source: modelData.imageUrl || ""
-                    fillMode: Image.PreserveAspectFit
-                    opacity: 0.9
-                    visible: status === Image.Ready || status === Image.Loading
+                    clip: true  // This will crop the image to fit the container
                     
-                    // Smooth scaling
-                    smooth: true
-                    mipmap: true
+                    // Use a Rectangle as a background/fallback for the DSO
+                    Rectangle {
+                        id: dsoBackground
+                        anchors.fill: parent
+                        color: "transparent"
+                        radius: width / 2
+                        border.width: 1
+                        border.color: "#8080FF"
+                        opacity: 0.5
+                        visible: !dsoImage.visible || dsoImage.status !== Image.Ready
+                    }
                     
-                    // Rotation to match celestial coordinates (simplified)
-                    rotation: -root.azimuth
-                    
-                    // Debug information
-                    onStatusChanged: {
-                        if (status === Image.Error) {
-                            console.log("Failed to load image: " + source);
-                        } else if (status === Image.Ready) {
-                            console.log("Image loaded successfully: " + source);
-                        }
+                    Image {
+                        id: dsoImage
+                        width: parent.width * 1.2  // Scale slightly larger to fill the container
+                        height: parent.height * 1.2
+                        anchors.centerIn: parent
+                        source: modelData.imageUrl || ""
+                        fillMode: Image.PreserveAspectCrop  // Crop to fill the container
+                        opacity: 0.9
+                        visible: status === Image.Ready || status === Image.Loading
+                        
+                        // Smooth scaling
+                        smooth: true
+                        mipmap: true
+                        
+                        // Rotation to match celestial coordinates (simplified)
+                        rotation: -root.azimuth
                     }
                 }
                 
-                // DSO name label
+                // DSO name label - placed below the image, not cropped
                 Text {
-                    anchors.horizontalCenter: dsoImage.horizontalCenter
-                    anchors.top: dsoImage.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.bottom
                     anchors.topMargin: 2
                     text: modelData.name
                     color: "#FFFFFF"
-                    font.pixelSize: 12
+                    font.pixelSize: 10  // Smaller font
                     style: Text.Outline
                     styleColor: "#000000"
-                }
-                
-                // Optional: Show angular size for debugging
-                Text {
-                    anchors.horizontalCenter: dsoImage.horizontalCenter
-                    anchors.bottom: dsoImage.top
-                    anchors.bottomMargin: 2
-                    text: modelData.angularSize ? modelData.angularSize.toFixed(1) + "'" : ""
-                    color: "#AAAAFF"
-                    font.pixelSize: 10
-                    style: Text.Outline
-                    styleColor: "#000000"
-                    visible: false // Set to true for debugging
+                    // Limit width to prevent long names from overlapping
+                    width: parent.width * 1.5
+                    elide: Text.ElideRight  // Add ellipsis for long names
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
         }
     }
     
-    // UI elements (compass, etc) - same as before
+    // UI elements remain the same as before
     Item {
         id: uiContainer
         anchors.fill: parent
@@ -151,7 +141,6 @@ Item {
             Text {
                 anchors.centerIn: parent
                 text: {
-                    // Convert azimuth to cardinal direction
                     var dir = "";
                     var az = root.azimuth;
                     
@@ -255,10 +244,11 @@ Item {
         }
     }
     
-    // Allow mouse and touch interaction for manual exploration
+    // Mouse/touch interaction
     MouseArea {
+        id: dragArea
         anchors.fill: parent
-        z: 5 // Above everything else
+        z: 5
         
         property real lastX: 0
         property real lastY: 0
@@ -276,39 +266,29 @@ Item {
         
         onPositionChanged: {
             if (dragging) {
-                // Manual adjustment of view
-                // This is a simplified implementation, in a real app
-                // you would adjust the SkyViewController's azimuth/altitude
-                // based on the drag distance and direction
-                
-                // Calculate change in mouse position
                 var deltaX = mouse.x - lastX
                 var deltaY = mouse.y - lastY
                 
-                // Update last position
                 lastX = mouse.x
                 lastY = mouse.y
                 
-                // Visual feedback
                 overlaySkyView.opacity = 0.5
                 overlaySkyView.x += deltaX * 0.1
                 overlaySkyView.y += deltaY * 0.1
                 
-                // Reset overlay after a short delay
                 resetTimer.restart()
             }
         }
     }
     
-    // Overlay to provide visual feedback during manual exploration
+    // Overlay for drag feedback
     Rectangle {
         id: overlaySkyView
         anchors.fill: parent
-        z: 6 // On top of everything
+        z: 6
         color: "transparent"
         opacity: 0
         
-        // Timing for resetting overlay
         Timer {
             id: resetTimer
             interval: 300
