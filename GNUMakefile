@@ -1,0 +1,12 @@
+default: sky
+
+./Release/DSO_SkyView.app: sky
+	xcodebuild -project DSO_SkyView.xcodeproj -scheme DSO_SkyView -configuration Release
+
+sky: DSO_SkyView.pro
+	for i in moc_geocoordinate.cpp moc_IOSSensorBridge.cpp moc_skyviewcontroller.cpp; do /opt/homebrew/Cellar/qt/6.9.0/share/qt/libexec/moc `echo $$i|sed -e 's=^moc_==' -e 's=.cpp=.h='` -o $$i; done
+	/Users/jonathan/Qt/6.9.0/ios/bin/qmake -spec macx-ios-clang $<
+
+run: ./Release/DSO_SkyView.app
+	./Release/DSO_SkyView.app/Contents/MacOS/DSO_SkyView
+
