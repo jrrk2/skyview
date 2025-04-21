@@ -282,7 +282,9 @@ void SkyViewController::onLocationMetadataChanged()
     
     emit locationMetadataChanged();
 }
-  
+
+// Updated updateVisibleDSOs method for SkyViewController.cpp
+
 void SkyViewController::updateVisibleDSOs()
 {
     // Clear the current list of visible objects
@@ -292,20 +294,21 @@ void SkyViewController::updateVisibleDSOs()
     m_astronomyCalculator.setLocation(m_location);
     m_astronomyCalculator.setDateTime(QDateTime::currentDateTimeUtc());
     
-    // Check each DSO to see if it's in the field of view
+    // Calculate the RA and DEC of the center of view
+    double raJ2000, decJ2000, hourAngle;
+    m_astronomyCalculator.horizontalToJ2000(m_azimuth, m_altitude, &raJ2000, &decJ2000, &hourAngle);
+
+    // Update RA and DEC if they've changed significantly
+    if (qAbs(raJ2000 - m_rightAscension) > 0.01 || qAbs(decJ2000 - m_declination) > 0.01) {
+        m_rightAscension = raJ2000;
+        m_declination = decJ2000;
+        emit rightAscensionChanged(m_rightAscension);
+        emit declinationChanged(m_declination);
+    }
+    
+    // Check each DSO to see if it should be displayed
     for (const DSOObject &dso : m_dsoObjects) {
         double dsoAzimuth, dsoAltitude;
-	// Calculate the RA and DEC of the center of view
-	double raJ2000, decJ2000, hourAngle;
-	m_astronomyCalculator.horizontalToJ2000(m_azimuth, m_altitude, &raJ2000, &decJ2000, &hourAngle);
-
-	// Update RA and DEC if they've changed significantly
-	if (qAbs(raJ2000 - m_rightAscension) > 0.01 || qAbs(decJ2000 - m_declination) > 0.01) {
-	    m_rightAscension = raJ2000;
-	    m_declination = decJ2000;
-	    emit rightAscensionChanged(m_rightAscension);
-	    emit declinationChanged(m_declination);
-	}
         
         // Convert equatorial coordinates to horizontal using our calculator
         m_astronomyCalculator.equatorialToHorizontal(dso.rightAscension, dso.declination, &dsoAzimuth, &dsoAltitude);
@@ -314,8 +317,11 @@ void SkyViewController::updateVisibleDSOs()
         double angularSeparation = m_astronomyCalculator.angularSeparation(
             m_azimuth, m_altitude, dsoAzimuth, dsoAltitude);
         
-        // If the DSO is within our field of view, add it to visible list
-        if (angularSeparation <= m_fieldOfView / 2.0) {
+        // Use a much wider field of view for testing
+        const double testFieldOfView = 120.0; // 120 degrees - almost 1/3 of the sky
+        
+        // If the DSO is within our field of view or we're using test mode, add it to visible list
+        if (angularSeparation <= testFieldOfView / 2.0) {
             QVariantMap dsoMap;
             dsoMap["name"] = dso.name;
             dsoMap["ra"] = dso.rightAscension;
@@ -324,17 +330,28 @@ void SkyViewController::updateVisibleDSOs()
             dsoMap["azimuth"] = dsoAzimuth;
             dsoMap["altitude"] = dsoAltitude;
             
-            // Calculate position in view coordinates (-1 to 1 range)
+            // Calculate position in view coordinates (0 to 1 range for direct QML positioning)
             // Calculate azimuth difference properly across the 0/360 boundary
             double azDiff = dsoAzimuth - m_azimuth;
             if (azDiff > 180) azDiff -= 360;
             if (azDiff < -180) azDiff += 360;
             
-            double normAzDiff = azDiff / (m_fieldOfView / 2.0);
-            double normAltDiff = (dsoAltitude - m_altitude) / (m_fieldOfView / 2.0);
+            // Convert angular difference to normalized screen coordinates
+            // Negative values because sky coordinates work opposite to screen coordinates
+            // X = -azDiff / FOV scaled from -1 to 1
+            // Y = -altDiff / FOV scaled from -1 to 1
+            double normAzDiff = -azDiff / (testFieldOfView / 2.0);
+            double normAltDiff = -(dsoAltitude - m_altitude) / (testFieldOfView / 2.0);
+            
+            // Clamp values to ensure they're in display range
+            normAzDiff = qBound(-0.9, normAzDiff, 0.9);
+            normAltDiff = qBound(-0.9, normAltDiff, 0.9);
             
             dsoMap["viewX"] = normAzDiff;
             dsoMap["viewY"] = normAltDiff;
+            
+            // For debugging, add some useful data
+            dsoMap["angularDistance"] = angularSeparation;
             
             m_visibleDSOs.append(dsoMap);
         }
