@@ -117,7 +117,7 @@ ApplicationWindow {
         id: infoOverlay
         color: "#80000000"
         width: parent.width
-        height: 120
+        height: 160  // Increased height to accommodate more info
         anchors.bottom: parent.bottom
         
         ColumnLayout {
@@ -125,18 +125,40 @@ ApplicationWindow {
             anchors.margins: 10
             spacing: 5
             
-            Text {
+            // Horizontal coordinates
+            GridLayout {
                 Layout.fillWidth: true
-                text: "Azimuth: " + skyViewController.azimuth.toFixed(1) + "°"
-                color: "#FFFFFF"
-                font.pixelSize: 16
-            }
-            
-            Text {
-                Layout.fillWidth: true
-                text: "Altitude: " + skyViewController.altitude.toFixed(1) + "°"
-                color: "#FFFFFF"
-                font.pixelSize: 16
+                columns: 2
+                columnSpacing: 10
+                
+                Text {
+                    Layout.fillWidth: true
+                    text: "Azimuth: " + skyViewController.azimuth.toFixed(1) + "°"
+                    color: "#FFFFFF"
+                    font.pixelSize: 16
+                }
+                
+                Text {
+                    Layout.fillWidth: true
+                    text: "Altitude: " + skyViewController.altitude.toFixed(1) + "°"
+                    color: "#FFFFFF"
+                    font.pixelSize: 16
+                }
+                
+                // Equatorial coordinates
+                Text {
+                    Layout.fillWidth: true
+                    text: "RA: " + skyViewController.formattedRA
+                    color: "#FFFFFF"
+                    font.pixelSize: 16
+                }
+                
+                Text {
+                    Layout.fillWidth: true
+                    text: "DEC: " + skyViewController.formattedDEC
+                    color: "#FFFFFF"
+                    font.pixelSize: 16
+                }
             }
             
             Text {

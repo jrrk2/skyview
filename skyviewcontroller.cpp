@@ -10,7 +10,9 @@ SkyViewController::SkyViewController(QObject *parent)
       m_manualLocationMode(false),
       m_locationAccuracy(0.0),
       m_locationStatus("GPS initializing"),
-      m_fieldOfView(50.0) // Default 50 degree field of view
+      m_fieldOfView(50.0), // Default 50 degree field of view
+      m_rightAscension(0.0),
+      m_declination(0.0) // Default 50 degree field of view
 {
     // Connect sensor signals
     connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
@@ -280,7 +282,7 @@ void SkyViewController::onLocationMetadataChanged()
     
     emit locationMetadataChanged();
 }
-
+  
 void SkyViewController::updateVisibleDSOs()
 {
     // Clear the current list of visible objects
@@ -293,6 +295,17 @@ void SkyViewController::updateVisibleDSOs()
     // Check each DSO to see if it's in the field of view
     for (const DSOObject &dso : m_dsoObjects) {
         double dsoAzimuth, dsoAltitude;
+	// Calculate the RA and DEC of the center of view
+	double ra, dec;
+	m_astronomyCalculator.horizontalToEquatorial(m_azimuth, m_altitude, &ra, &dec);
+
+	// Update RA and DEC if they've changed significantly
+	if (qAbs(ra - m_rightAscension) > 0.01 || qAbs(dec - m_declination) > 0.01) {
+	    m_rightAscension = ra;
+	    m_declination = dec;
+	    emit rightAscensionChanged(m_rightAscension);
+	    emit declinationChanged(m_declination);
+	}
         
         // Convert equatorial coordinates to horizontal using our calculator
         m_astronomyCalculator.equatorialToHorizontal(dso.rightAscension, dso.declination, &dsoAzimuth, &dsoAltitude);
@@ -328,4 +341,46 @@ void SkyViewController::updateVisibleDSOs()
     }
     
     emit visibleDSOsChanged();
+}
+
+// Now implement the getters in skyviewcontroller.cpp:
+
+double SkyViewController::rightAscension() const
+{
+    return m_rightAscension;
+}
+
+double SkyViewController::declination() const
+{
+    return m_declination;
+}
+
+QString SkyViewController::formattedRA() const
+{
+    // Format RA as HH:MM:SS
+    int hours = static_cast<int>(m_rightAscension);
+    double minutesDecimal = (m_rightAscension - hours) * 60.0;
+    int minutes = static_cast<int>(minutesDecimal);
+    double seconds = (minutesDecimal - minutes) * 60.0;
+    
+    return QString("%1h %2m %3s").arg(hours, 2, 10, QChar('0'))
+                                .arg(minutes, 2, 10, QChar('0'))
+                                .arg(static_cast<int>(seconds), 2, 10, QChar('0'));
+}
+
+QString SkyViewController::formattedDEC() const
+{
+    // Format DEC as DD°MM'SS"
+    bool isNegative = m_declination < 0;
+    double absDec = qAbs(m_declination);
+    int degrees = static_cast<int>(absDec);
+    double minutesDecimal = (absDec - degrees) * 60.0;
+    int minutes = static_cast<int>(minutesDecimal);
+    double seconds = (minutesDecimal - minutes) * 60.0;
+    
+    QString sign = isNegative ? "-" : "+";
+    return QString("%1%2° %3' %4\"").arg(sign)
+                                   .arg(degrees, 2, 10, QChar('0'))
+                                   .arg(minutes, 2, 10, QChar('0'))
+                                   .arg(static_cast<int>(seconds), 2, 10, QChar('0'));
 }

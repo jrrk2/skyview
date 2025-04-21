@@ -51,6 +51,10 @@ template <> constexpr inline auto SkyViewController::qt_create_metaobjectdata<qt
         "locationMetadataChanged",
         "locationStatusChanged",
         "status",
+        "rightAscensionChanged",
+        "ra",
+        "declinationChanged",
+        "dec",
         "onAzimuthChanged",
         "onPitchChanged",
         "pitch",
@@ -65,8 +69,6 @@ template <> constexpr inline auto SkyViewController::qt_create_metaobjectdata<qt
         "updateVisibleDSOs",
         "addCustomDSO",
         "name",
-        "ra",
-        "dec",
         "imageUrl",
         "loadDefaultDSOs",
         "startSensors",
@@ -80,7 +82,11 @@ template <> constexpr inline auto SkyViewController::qt_create_metaobjectdata<qt
         "QVariantList",
         "isGPSEnabled",
         "locationAccuracy",
-        "locationStatus"
+        "locationStatus",
+        "rightAscension",
+        "declination",
+        "formattedRA",
+        "formattedDEC"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -106,50 +112,58 @@ template <> constexpr inline auto SkyViewController::qt_create_metaobjectdata<qt
         QtMocHelpers::SignalData<void(const QString &)>(11, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::QString, 12 },
         }}),
+        // Signal 'rightAscensionChanged'
+        QtMocHelpers::SignalData<void(double)>(13, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Double, 14 },
+        }}),
+        // Signal 'declinationChanged'
+        QtMocHelpers::SignalData<void(double)>(15, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Double, 16 },
+        }}),
         // Slot 'onAzimuthChanged'
-        QtMocHelpers::SlotData<void(double)>(13, 2, QMC::AccessPrivate, QMetaType::Void, {{
+        QtMocHelpers::SlotData<void(double)>(17, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Double, 3 },
         }}),
         // Slot 'onPitchChanged'
-        QtMocHelpers::SlotData<void(double)>(14, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Double, 15 },
+        QtMocHelpers::SlotData<void(double)>(18, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Double, 19 },
         }}),
         // Slot 'onLocationChanged'
-        QtMocHelpers::SlotData<void(GeoCoordinate)>(16, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { 0x80000000 | 17, 18 },
+        QtMocHelpers::SlotData<void(GeoCoordinate)>(20, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { 0x80000000 | 21, 22 },
         }}),
         // Slot 'onLocationError'
-        QtMocHelpers::SlotData<void(const QString &)>(19, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 20 },
+        QtMocHelpers::SlotData<void(const QString &)>(23, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 24 },
         }}),
         // Slot 'onLocationAuthorizationChanged'
-        QtMocHelpers::SlotData<void(bool)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Bool, 22 },
+        QtMocHelpers::SlotData<void(bool)>(25, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Bool, 26 },
         }}),
         // Slot 'onLocationMetadataChanged'
-        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(27, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'updateVisibleDSOs'
-        QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(28, 2, QMC::AccessPrivate, QMetaType::Void),
         // Method 'addCustomDSO'
-        QtMocHelpers::MethodData<void(const QString &, double, double, const QUrl &)>(25, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 26 }, { QMetaType::Double, 27 }, { QMetaType::Double, 28 }, { QMetaType::QUrl, 29 },
+        QtMocHelpers::MethodData<void(const QString &, double, double, const QUrl &)>(29, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 30 }, { QMetaType::Double, 14 }, { QMetaType::Double, 16 }, { QMetaType::QUrl, 31 },
         }}),
         // Method 'loadDefaultDSOs'
-        QtMocHelpers::MethodData<void()>(30, 2, QMC::AccessPublic, QMetaType::Void),
-        // Method 'startSensors'
-        QtMocHelpers::MethodData<void()>(31, 2, QMC::AccessPublic, QMetaType::Void),
-        // Method 'stopSensors'
         QtMocHelpers::MethodData<void()>(32, 2, QMC::AccessPublic, QMetaType::Void),
+        // Method 'startSensors'
+        QtMocHelpers::MethodData<void()>(33, 2, QMC::AccessPublic, QMetaType::Void),
+        // Method 'stopSensors'
+        QtMocHelpers::MethodData<void()>(34, 2, QMC::AccessPublic, QMetaType::Void),
         // Method 'setGPSAccuracy'
-        QtMocHelpers::MethodData<void(int)>(33, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Int, 34 },
+        QtMocHelpers::MethodData<void(int)>(35, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Int, 36 },
         }}),
         // Method 'useManualLocation'
-        QtMocHelpers::MethodData<void(bool)>(35, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Bool, 36 },
+        QtMocHelpers::MethodData<void(bool)>(37, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 38 },
         }}),
         // Method 'requestLocationPermission'
-        QtMocHelpers::MethodData<void()>(37, 2, QMC::AccessPublic, QMetaType::Void),
+        QtMocHelpers::MethodData<void()>(39, 2, QMC::AccessPublic, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
         // property 'azimuth'
@@ -157,15 +171,23 @@ template <> constexpr inline auto SkyViewController::qt_create_metaobjectdata<qt
         // property 'altitude'
         QtMocHelpers::PropertyData<double>(5, QMetaType::Double, QMC::DefaultPropertyFlags, 1),
         // property 'visibleDSOs'
-        QtMocHelpers::PropertyData<QVariantList>(38, 0x80000000 | 39, QMC::DefaultPropertyFlags | QMC::EnumOrFlag, 2),
+        QtMocHelpers::PropertyData<QVariantList>(40, 0x80000000 | 41, QMC::DefaultPropertyFlags | QMC::EnumOrFlag, 2),
         // property 'location'
-        QtMocHelpers::PropertyData<GeoCoordinate>(18, 0x80000000 | 17, QMC::DefaultPropertyFlags | QMC::Writable | QMC::EnumOrFlag | QMC::StdCppSet, 3),
+        QtMocHelpers::PropertyData<GeoCoordinate>(22, 0x80000000 | 21, QMC::DefaultPropertyFlags | QMC::Writable | QMC::EnumOrFlag | QMC::StdCppSet, 3),
         // property 'isGPSEnabled'
-        QtMocHelpers::PropertyData<bool>(40, QMetaType::Bool, QMC::DefaultPropertyFlags, 4),
+        QtMocHelpers::PropertyData<bool>(42, QMetaType::Bool, QMC::DefaultPropertyFlags, 4),
         // property 'locationAccuracy'
-        QtMocHelpers::PropertyData<double>(41, QMetaType::Double, QMC::DefaultPropertyFlags, 5),
+        QtMocHelpers::PropertyData<double>(43, QMetaType::Double, QMC::DefaultPropertyFlags, 5),
         // property 'locationStatus'
-        QtMocHelpers::PropertyData<QString>(42, QMetaType::QString, QMC::DefaultPropertyFlags, 6),
+        QtMocHelpers::PropertyData<QString>(44, QMetaType::QString, QMC::DefaultPropertyFlags, 6),
+        // property 'rightAscension'
+        QtMocHelpers::PropertyData<double>(45, QMetaType::Double, QMC::DefaultPropertyFlags, 7),
+        // property 'declination'
+        QtMocHelpers::PropertyData<double>(46, QMetaType::Double, QMC::DefaultPropertyFlags, 8),
+        // property 'formattedRA'
+        QtMocHelpers::PropertyData<QString>(47, QMetaType::QString, QMC::DefaultPropertyFlags, 7),
+        // property 'formattedDEC'
+        QtMocHelpers::PropertyData<QString>(48, QMetaType::QString, QMC::DefaultPropertyFlags, 8),
     };
     QtMocHelpers::UintData qt_enums {
     };
@@ -194,27 +216,29 @@ void SkyViewController::qt_static_metacall(QObject *_o, QMetaObject::Call _c, in
         case 4: _t->gpsStatusChanged((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
         case 5: _t->locationMetadataChanged(); break;
         case 6: _t->locationStatusChanged((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
-        case 7: _t->onAzimuthChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
-        case 8: _t->onPitchChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
-        case 9: _t->onLocationChanged((*reinterpret_cast< std::add_pointer_t<GeoCoordinate>>(_a[1]))); break;
-        case 10: _t->onLocationError((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
-        case 11: _t->onLocationAuthorizationChanged((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
-        case 12: _t->onLocationMetadataChanged(); break;
-        case 13: _t->updateVisibleDSOs(); break;
-        case 14: _t->addCustomDSO((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<double>>(_a[2])),(*reinterpret_cast< std::add_pointer_t<double>>(_a[3])),(*reinterpret_cast< std::add_pointer_t<QUrl>>(_a[4]))); break;
-        case 15: _t->loadDefaultDSOs(); break;
-        case 16: _t->startSensors(); break;
-        case 17: _t->stopSensors(); break;
-        case 18: _t->setGPSAccuracy((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 19: _t->useManualLocation((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
-        case 20: _t->requestLocationPermission(); break;
+        case 7: _t->rightAscensionChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
+        case 8: _t->declinationChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
+        case 9: _t->onAzimuthChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
+        case 10: _t->onPitchChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
+        case 11: _t->onLocationChanged((*reinterpret_cast< std::add_pointer_t<GeoCoordinate>>(_a[1]))); break;
+        case 12: _t->onLocationError((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
+        case 13: _t->onLocationAuthorizationChanged((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
+        case 14: _t->onLocationMetadataChanged(); break;
+        case 15: _t->updateVisibleDSOs(); break;
+        case 16: _t->addCustomDSO((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<double>>(_a[2])),(*reinterpret_cast< std::add_pointer_t<double>>(_a[3])),(*reinterpret_cast< std::add_pointer_t<QUrl>>(_a[4]))); break;
+        case 17: _t->loadDefaultDSOs(); break;
+        case 18: _t->startSensors(); break;
+        case 19: _t->stopSensors(); break;
+        case 20: _t->setGPSAccuracy((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 21: _t->useManualLocation((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
+        case 22: _t->requestLocationPermission(); break;
         default: ;
         }
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         switch (_id) {
         default: *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType(); break;
-        case 9:
+        case 11:
             switch (*reinterpret_cast<int*>(_a[1])) {
             default: *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType(); break;
             case 0:
@@ -238,6 +262,10 @@ void SkyViewController::qt_static_metacall(QObject *_o, QMetaObject::Call _c, in
             return;
         if (QtMocHelpers::indexOfMethod<void (SkyViewController::*)(const QString & )>(_a, &SkyViewController::locationStatusChanged, 6))
             return;
+        if (QtMocHelpers::indexOfMethod<void (SkyViewController::*)(double )>(_a, &SkyViewController::rightAscensionChanged, 7))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (SkyViewController::*)(double )>(_a, &SkyViewController::declinationChanged, 8))
+            return;
     }
     if (_c == QMetaObject::RegisterPropertyMetaType) {
         switch (_id) {
@@ -256,6 +284,10 @@ void SkyViewController::qt_static_metacall(QObject *_o, QMetaObject::Call _c, in
         case 4: *reinterpret_cast<bool*>(_v) = _t->isGPSEnabled(); break;
         case 5: *reinterpret_cast<double*>(_v) = _t->locationAccuracy(); break;
         case 6: *reinterpret_cast<QString*>(_v) = _t->locationStatus(); break;
+        case 7: *reinterpret_cast<double*>(_v) = _t->rightAscension(); break;
+        case 8: *reinterpret_cast<double*>(_v) = _t->declination(); break;
+        case 9: *reinterpret_cast<QString*>(_v) = _t->formattedRA(); break;
+        case 10: *reinterpret_cast<QString*>(_v) = _t->formattedDEC(); break;
         default: break;
         }
     }
@@ -287,20 +319,20 @@ int SkyViewController::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 21)
+        if (_id < 23)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 21;
+        _id -= 23;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 21)
+        if (_id < 23)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 21;
+        _id -= 23;
     }
     if (_c == QMetaObject::ReadProperty || _c == QMetaObject::WriteProperty
             || _c == QMetaObject::ResetProperty || _c == QMetaObject::BindableProperty
             || _c == QMetaObject::RegisterPropertyMetaType) {
         qt_static_metacall(this, _c, _id, _a);
-        _id -= 7;
+        _id -= 11;
     }
     return _id;
 }
@@ -345,5 +377,17 @@ void SkyViewController::locationMetadataChanged()
 void SkyViewController::locationStatusChanged(const QString & _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 6, nullptr, _t1);
+}
+
+// SIGNAL 7
+void SkyViewController::rightAscensionChanged(double _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 7, nullptr, _t1);
+}
+
+// SIGNAL 8
+void SkyViewController::declinationChanged(double _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 8, nullptr, _t1);
 }
 QT_WARNING_POP

@@ -30,6 +30,11 @@ class SkyViewController : public QObject
     Q_PROPERTY(bool isGPSEnabled READ isGPSEnabled NOTIFY gpsStatusChanged)
     Q_PROPERTY(double locationAccuracy READ locationAccuracy NOTIFY locationMetadataChanged)
     Q_PROPERTY(QString locationStatus READ locationStatus NOTIFY locationStatusChanged)
+    // Add these properties to skyviewcontroller.h in the Q_PROPERTY section:
+    Q_PROPERTY(double rightAscension READ rightAscension NOTIFY rightAscensionChanged)
+    Q_PROPERTY(double declination READ declination NOTIFY declinationChanged)
+    Q_PROPERTY(QString formattedRA READ formattedRA NOTIFY rightAscensionChanged)
+    Q_PROPERTY(QString formattedDEC READ formattedDEC NOTIFY declinationChanged)
     
 public:
     explicit SkyViewController(QObject *parent = nullptr);
@@ -43,6 +48,11 @@ public:
     bool isGPSEnabled() const;
     double locationAccuracy() const;
     QString locationStatus() const;
+    // Add these getters to the public section in skyviewcontroller.h:
+    double rightAscension() const;
+    double declination() const;
+    QString formattedRA() const;
+    QString formattedDEC() const;
     
     // Setters
     void setLocation(const GeoCoordinate &location);
@@ -64,6 +74,9 @@ signals:
     void gpsStatusChanged(bool enabled);
     void locationMetadataChanged();
     void locationStatusChanged(const QString &status);
+    // Add these signals to the signals section in skyviewcontroller.h:
+    void rightAscensionChanged(double ra);
+    void declinationChanged(double dec);
     
 private slots:
     void onAzimuthChanged(double azimuth);
@@ -97,6 +110,11 @@ private:
     
     // View parameters
     double m_fieldOfView;  // Field of view in degrees
+
+    // Add these private member variables to the private section in skyviewcontroller.h:
+    double m_rightAscension;  // in hours
+    double m_declination;     // in degrees
+  
 };
 
 #endif // SKYVIEWCONTROLLER_H
