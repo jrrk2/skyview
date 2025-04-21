@@ -1,4 +1,4 @@
-// Modified SkyView.qml with cropped images
+// Updated SkyView.qml for cropped images with scaling
 import QtQuick
 
 Item {
@@ -20,7 +20,7 @@ Item {
         }
     }
     
-    // Stars (could be replaced with a more sophisticated star field)
+    // Stars
     Item {
         id: starField
         anchors.fill: parent
@@ -41,7 +41,7 @@ Item {
         }
     }
     
-    // Deep sky objects - place in front of the stars
+    // Deep sky objects
     Item {
         id: dsoContainer
         anchors.fill: parent
@@ -58,9 +58,9 @@ Item {
                 x: (modelData.viewX + 1) * parent.width / 2
                 y: (modelData.viewY + 1) * parent.height / 2
                 
-                // Use smaller size to allow more DSOs on screen
-                width: modelData.displaySize ? modelData.displaySize * 0.6 : 60
-                height: modelData.displaySize ? modelData.displaySize * 0.6 : 60
+                // Size based on the calculated display size
+                width: modelData.displaySize || 60
+                height: modelData.displaySize || 60
                 
                 // Center the object
                 transform: Translate {
@@ -72,9 +72,9 @@ Item {
                 Item {
                     id: imageClip
                     anchors.fill: parent
-                    clip: true  // This will crop the image to fit the container
+                    clip: true  // This will crop the image to the container
                     
-                    // Use a Rectangle as a background/fallback for the DSO
+                    // Fallback rectangle if image isn't ready
                     Rectangle {
                         id: dsoBackground
                         anchors.fill: parent
@@ -88,11 +88,30 @@ Item {
                     
                     Image {
                         id: dsoImage
-                        width: parent.width * 1.2  // Scale slightly larger to fill the container
-                        height: parent.height * 1.2
+                        // If we have cropped dimensions, use them for aspect ratio
+                        width: {
+                            if (modelData.croppedWidth && modelData.croppedHeight) {
+                                var aspectRatio = modelData.croppedWidth / modelData.croppedHeight;
+                                return (aspectRatio >= 1.0) ? parent.width : parent.height * aspectRatio;
+                            } else {
+                                return parent.width;
+                            }
+                        }
+                        
+                        height: {
+                            if (modelData.croppedWidth && modelData.croppedHeight) {
+                                var aspectRatio = modelData.croppedWidth / modelData.croppedHeight;
+                                return (aspectRatio >= 1.0) ? parent.width / aspectRatio : parent.height;
+                            } else {
+                                return parent.height;
+                            }
+                        }
+                        
+                        // Center in parent
                         anchors.centerIn: parent
+                        
                         source: modelData.imageUrl || ""
-                        fillMode: Image.PreserveAspectCrop  // Crop to fill the container
+                        fillMode: Image.PreserveAspectFit
                         opacity: 0.9
                         visible: status === Image.Ready || status === Image.Loading
                         
@@ -100,31 +119,61 @@ Item {
                         smooth: true
                         mipmap: true
                         
-                        // Rotation to match celestial coordinates (simplified)
+                        // Rotation to match celestial coordinates
                         rotation: -root.azimuth
+                        
+                        // Show loading or error states
+                        onStatusChanged: {
+                            if (status === Image.Error) {
+                                console.log("Failed to load image: " + source);
+                            } else if (status === Image.Ready) {
+                                console.log("Image loaded successfully: " + source);
+                            }
+                        }
                     }
                 }
                 
-                // DSO name label - placed below the image, not cropped
+                // Show a type indicator based on object type (optional)
+                Rectangle {
+                    id: typeIndicator
+                    width: 8
+                    height: 8
+                    radius: 4
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 2
+                    color: {
+                        // Color based on type
+                        var type = modelData.objectType;
+                        if (type === "Galaxy") return "#FF5500";  // Orange for galaxies
+                        if (type === "Nebula") return "#FF0099";  // Pink for nebulae
+                        if (type === "Globular Cluster") return "#00AAFF"; // Blue for globular clusters
+                        if (type === "Open Cluster") return "#88FF00"; // Green for open clusters
+                        return "#FFFFFF"; // White for others
+                    }
+                    opacity: 0.8
+                    visible: false // Set to true if you want to enable type indicators
+                }
+                
+                // DSO name label - placed below the image
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.bottom
                     anchors.topMargin: 2
                     text: modelData.name
                     color: "#FFFFFF"
-                    font.pixelSize: 10  // Smaller font
+                    font.pixelSize: 10
                     style: Text.Outline
                     styleColor: "#000000"
-                    // Limit width to prevent long names from overlapping
                     width: parent.width * 1.5
-                    elide: Text.ElideRight  // Add ellipsis for long names
+                    elide: Text.ElideRight
                     horizontalAlignment: Text.AlignHCenter
                 }
             }
         }
     }
     
-    // UI elements remain the same as before
+    // UI elements (compass, etc.)
     Item {
         id: uiContainer
         anchors.fill: parent

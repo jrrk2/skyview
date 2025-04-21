@@ -10,13 +10,16 @@
 #include "IOSSensorBridge.h"
 #include "AstronomyCalculator.h"
 
-// Structure to hold deep sky object information
 struct DSOObject {
     QString name;
     double rightAscension;  // in hours
     double declination;     // in degrees
     double angularSize;     // in arcminutes (diameter or width)
     QUrl imageUrl;          // local path to image
+    int croppedWidth;       // Width of cropped image in pixels
+    int croppedHeight;      // Height of cropped image in pixels  
+    double scaleFactor;     // Scale factor based on 1.23 arcsec/pixel scale
+    int displaySize;        // Recommended display size in pixels
 };
 
 class SkyViewController : public QObject
@@ -57,7 +60,9 @@ public:
     void setLocation(const GeoCoordinate &location);
     
     // Q_INVOKABLE methods that can be called from QML
-    Q_INVOKABLE void addCustomDSO(const QString &name, double ra, double dec, const QUrl &imageUrl, double size);
+    Q_INVOKABLE void addCustomDSO(const QString &name, double ra, double dec, 
+                                    const QUrl &imageUrl, double size, 
+				  int croppedWidth, int croppedHeight, double scaleFactor);
     Q_INVOKABLE void loadDefaultDSOs();
     Q_INVOKABLE void startSensors();
     Q_INVOKABLE void stopSensors();

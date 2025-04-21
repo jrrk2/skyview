@@ -154,7 +154,8 @@ void SkyViewController::requestLocationPermission()
     startSensors();
 }
 
-void SkyViewController::addCustomDSO(const QString &name, double ra, double dec, const QUrl &imageUrl, double size)
+void SkyViewController::addCustomDSO(const QString &name, double ra, double dec, const QUrl &imageUrl, double size,
+				     int croppedWidth, int croppedHeight, double scaleFactor)
 {
     // Add a custom DSO to the database
     DSOObject dso;
@@ -167,6 +168,7 @@ void SkyViewController::addCustomDSO(const QString &name, double ra, double dec,
     updateVisibleDSOs();
 }
 
+/*
 // Updated loadDefaultDSOs method that uses the converted MessierCatalog
 void SkyViewController::loadDefaultDSOs()
 {
@@ -205,6 +207,7 @@ void SkyViewController::loadDefaultDSOs()
     // Update the UI
     updateVisibleDSOs();
 }
+*/
 
 void SkyViewController::startSensors()
 {
@@ -313,6 +316,7 @@ void SkyViewController::onLocationMetadataChanged()
     emit locationMetadataChanged();
 }
 
+/*
 void SkyViewController::updateVisibleDSOs()
 {
    if (m_location == nullptr) {
@@ -402,6 +406,7 @@ void SkyViewController::updateVisibleDSOs()
     
     emit visibleDSOsChanged();
 }
+*/
 
 // Now implement the getters in skyviewcontroller.cpp:
 
@@ -443,4 +448,145 @@ QString SkyViewController::formattedDEC() const
                                    .arg(degrees, 2, 10, QChar('0'))
                                    .arg(minutes, 2, 10, QChar('0'))
                                    .arg(static_cast<int>(seconds), 2, 10, QChar('0'));
+}
+
+void SkyViewController::updateVisibleDSOs()
+{
+    // Clear the current list of visible objects
+    m_visibleDSOs.clear();
+    
+    // Skip if location isn't ready yet
+    if (m_location == nullptr) {
+        qDebug() << "Skipping updateVisibleDSOs() - waiting for valid location";
+        return;
+    }
+    
+    // Update astronomy calculator with current time and location
+    m_astronomyCalculator.setLocation(*m_location);
+    m_astronomyCalculator.setDateTime(QDateTime::currentDateTimeUtc());
+    
+    // Calculate the RA and DEC of the center of view
+    double raJ2000, decJ2000, hourAngle;
+    m_astronomyCalculator.horizontalToJ2000(m_azimuth, m_altitude, &raJ2000, &decJ2000, &hourAngle);
+
+    // Update RA and DEC if they've changed significantly
+    if (qAbs(raJ2000 - m_rightAscension) > 0.01 || qAbs(decJ2000 - m_declination) > 0.01) {
+        m_rightAscension = raJ2000;
+        m_declination = decJ2000;
+        emit rightAscensionChanged(m_rightAscension);
+        emit declinationChanged(m_declination);
+    }
+    
+    // Use a wide field of view for testing
+    const double testFieldOfView = 120.0; // 120 degrees - large portion of the sky
+    
+    // Check each DSO to see if it should be displayed
+    for (const DSOObject &dso : m_dsoObjects) {
+        double dsoAzimuth, dsoAltitude;
+        
+        // Convert equatorial coordinates to horizontal using our calculator
+        m_astronomyCalculator.equatorialToHorizontal(dso.rightAscension, dso.declination, &dsoAzimuth, &dsoAltitude);
+        
+        // Calculate angular distance between viewing direction and DSO
+        double angularSeparation = m_astronomyCalculator.angularSeparation(
+            m_azimuth, m_altitude, dsoAzimuth, dsoAltitude);
+        
+        // If the DSO is within our wide field of view, add it to visible list
+        if (angularSeparation <= testFieldOfView / 2.0) {
+            QVariantMap dsoMap;
+            dsoMap["name"] = dso.name;
+            dsoMap["ra"] = dso.rightAscension;
+            dsoMap["dec"] = dso.declination;
+            dsoMap["imageUrl"] = dso.imageUrl;
+            dsoMap["azimuth"] = dsoAzimuth;
+            dsoMap["altitude"] = dsoAltitude;
+            dsoMap["angularSize"] = dso.angularSize;         // Original size in arcminutes
+            dsoMap["croppedWidth"] = dso.croppedWidth;       // Cropped width in pixels 
+            dsoMap["croppedHeight"] = dso.croppedHeight;     // Cropped height in pixels
+            
+            // Use the exact display size from the catalog if available,
+            // otherwise use a reasonable default
+            int displaySize = dso.displaySize > 0 ? dso.displaySize : 60;
+            
+            // Use the distance from center of view to adjust size slightly
+            // Objects at the edge of view are slightly smaller 
+            double distanceFactor = 1.0 - (angularSeparation / testFieldOfView);
+            displaySize = static_cast<int>(displaySize * (0.8 + 0.2 * distanceFactor));
+            
+            dsoMap["displaySize"] = displaySize;
+            
+            // Calculate position in view coordinates (-1 to 1 range)
+            // Calculate azimuth difference properly across the 0/360 boundary
+            double azDiff = dsoAzimuth - m_azimuth;
+            if (azDiff > 180) azDiff -= 360;
+            if (azDiff < -180) azDiff += 360;
+            
+            // Convert angular difference to normalized screen coordinates
+            double normAzDiff = -azDiff / (testFieldOfView / 2.0);
+            double normAltDiff = -(dsoAltitude - m_altitude) / (testFieldOfView / 2.0);
+            
+            // Clamp values to ensure they're in display range (-0.9 to 0.9)
+            normAzDiff = qBound(-0.9, normAzDiff, 0.9);
+            normAltDiff = qBound(-0.9, normAltDiff, 0.9);
+            
+            dsoMap["viewX"] = normAzDiff;
+            dsoMap["viewY"] = normAltDiff;
+            
+            // For debugging, add some info
+            dsoMap["angularDistance"] = angularSeparation;
+            dsoMap["scaleFactor"] = dso.scaleFactor;
+            
+            m_visibleDSOs.append(dsoMap);
+        }
+    }
+    
+    emit visibleDSOsChanged();
+}
+
+// Updated loadDefaultDSOs to use additional fields
+void SkyViewController::loadDefaultDSOs()
+{
+    // Clear existing objects
+    m_dsoObjects.clear();
+    
+    // Load data from MessierCatalog
+    for (const auto& messierObj : MessierCatalog) {
+        DSOObject dso;
+        dso.name = QString::fromStdString(messierObj.name);
+        
+        // Add common name if available
+        if (!messierObj.commonName.empty()) {
+            dso.name += " - " + QString::fromStdString(messierObj.commonName);
+        }
+        
+        dso.rightAscension = messierObj.raHours;
+        dso.declination = messierObj.decDegrees;
+        
+        // Use the larger of width/height for the angular size
+        dso.angularSize = std::max(messierObj.sizeArcminWidth, messierObj.sizeArcminHeight);
+        
+        // Add the cropping information
+        dso.croppedWidth = messierObj.croppedWidth;
+        dso.croppedHeight = messierObj.croppedHeight;
+        dso.scaleFactor = messierObj.scaleFactor;
+        dso.displaySize = messierObj.displaySize;
+        
+        // Use our embedded image provider URL format
+        QString id = QString::fromStdString(messierObj.name).toLower();
+        dso.imageUrl = QUrl("qrc:/images/" + id + ".jpg");
+        
+        // Add to the collection
+        m_dsoObjects.append(dso);
+        
+        qDebug() << "Loaded DSO:" << dso.name 
+                 << "RA:" << dso.rightAscension 
+                 << "Dec:" << dso.declination 
+                 << "Size:" << dso.angularSize
+                 << "Display Size:" << dso.displaySize;
+    }
+    
+    qDebug() << "Loaded" << m_dsoObjects.size() << "Messier objects";
+    
+    // Update visible objects based on current orientation
+    updateVisibleDSOs();
 }

@@ -30,17 +30,11 @@
 	<file>images/m46.jpg</file>
 	<file>images/m47.jpg</file>
 	<file>images/m48.jpg</file>
-	<file>images/m49.jpg</file>
 	<file>images/m50.jpg</file>
 	<file>images/m51.jpg</file>
 	<file>images/m52.jpg</file>
-	<file>images/m53.jpg</file>
-	<file>images/m58.jpg</file>
-	<file>images/m59.jpg</file>
-	<file>images/m60.jpg</file>
 	<file>images/m61.jpg</file>
 	<file>images/m63.jpg</file>
-	<file>images/m64.jpg</file>
 	<file>images/m65.jpg</file>
 	<file>images/m66.jpg</file>
 	<file>images/m67.jpg</file>
@@ -50,13 +44,7 @@
 	<file>images/m78.jpg</file>
 	<file>images/m81.jpg</file>
 	<file>images/m82.jpg</file>
-	<file>images/m84.jpg</file>
-	<file>images/m87.jpg</file>
-	<file>images/m88.jpg</file>
-	<file>images/m90.jpg</file>
-	<file>images/m92.jpg</file>
 	<file>images/m95.jpg</file>
-	<file>images/m96.jpg</file>
 	<file>images/m97.jpg</file>
         <file>main.qml</file>
         <file>SkyView.qml</file>
