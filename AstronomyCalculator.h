@@ -16,6 +16,11 @@ public:
     // Convert between coordinate systems
     void equatorialToHorizontal(double ra, double dec, double* azimuth, double* altitude);
     void horizontalToEquatorial(double azimuth, double altitude, double* ra, double* dec);
+    // Corrects apparent altitude for atmospheric refraction
+    double correctForRefraction(double apparentAltitude) const;
+
+    // Convert horizontal to J2000 equatorial coordinates directly
+    void horizontalToJ2000(double azimuth, double altitude, double* raJ2000, double* decJ2000, double* hourAngle = nullptr);
     
     // Calculate local sidereal time
     double calculateLST();

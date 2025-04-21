@@ -112,80 +112,97 @@ ApplicationWindow {
         }
     }
     
-    // Overlay with info
+    // Update the infoOverlay section in main.qml for simplified J2000 coordinates display
+
+    // Replace the existing infoOverlay Rectangle with this streamlined version:
+
     Rectangle {
-        id: infoOverlay
-        color: "#80000000"
-        width: parent.width
-        height: 160  // Increased height to accommodate more info
-        anchors.bottom: parent.bottom
-        
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 10
-            spacing: 5
-            
-            // Horizontal coordinates
-            GridLayout {
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 10
-                
-                Text {
-                    Layout.fillWidth: true
-                    text: "Azimuth: " + skyViewController.azimuth.toFixed(1) + "°"
-                    color: "#FFFFFF"
-                    font.pixelSize: 16
-                }
-                
-                Text {
-                    Layout.fillWidth: true
-                    text: "Altitude: " + skyViewController.altitude.toFixed(1) + "°"
-                    color: "#FFFFFF"
-                    font.pixelSize: 16
-                }
-                
-                // Equatorial coordinates
-                Text {
-                    Layout.fillWidth: true
-                    text: "RA: " + skyViewController.formattedRA
-                    color: "#FFFFFF"
-                    font.pixelSize: 16
-                }
-                
-                Text {
-                    Layout.fillWidth: true
-                    text: "DEC: " + skyViewController.formattedDEC
-                    color: "#FFFFFF"
-                    font.pixelSize: 16
-                }
-            }
-            
-            Text {
-                Layout.fillWidth: true
-                text: "Location: " + 
-                    skyViewController.location.latitude.toFixed(4) + ", " + 
-                    skyViewController.location.longitude.toFixed(4)
-                color: "#FFFFFF"
-                font.pixelSize: 16
-            }
-            
-            Text {
-                Layout.fillWidth: true
-                text: skyViewController.locationStatus
-                color: skyViewController.isGPSEnabled ? "#90EE90" : "#FFA07A"  // Light green if GPS enabled, light salmon if not
-                font.pixelSize: 14
-            }
-            
-            Text {
-                Layout.fillWidth: true
-                text: "DSOs in view: " + skyViewController.visibleDSOs.length
-                color: "#FFFFFF"
-                font.pixelSize: 16
-            }
-        }
-    }
-    
+	id: infoOverlay
+	color: "#80000000"
+	width: parent.width
+	height: 160  // Height for the simplified display
+	anchors.bottom: parent.bottom
+
+	ColumnLayout {
+	    anchors.fill: parent
+	    anchors.margins: 10
+	    spacing: 5
+
+	    // Horizontal coordinates
+	    GridLayout {
+		Layout.fillWidth: true
+		columns: 2
+		columnSpacing: 10
+
+		Text {
+		    Layout.fillWidth: true
+		    text: "Az: " + skyViewController.azimuth.toFixed(1) + "°"
+		    color: "#FFFFFF"
+		    font.pixelSize: 16
+		}
+
+		Text {
+		    Layout.fillWidth: true
+		    text: "Alt: " + skyViewController.altitude.toFixed(1) + "°"
+		    color: "#FFFFFF"
+		    font.pixelSize: 16
+		}
+	    }
+
+	    Text {
+		Layout.fillWidth: true
+		text: "J2000 Coordinates:"
+		color: "#AAAAFF"
+		font.pixelSize: 14
+		font.bold: true
+	    }
+
+	    // J2000 equatorial coordinates
+	    GridLayout {
+		Layout.fillWidth: true
+		columns: 2
+		columnSpacing: 10
+
+		Text {
+		    Layout.fillWidth: true
+		    text: "RA: " + skyViewController.formattedRA
+		    color: "#FFFFFF"
+		    font.pixelSize: 16
+		}
+
+		Text {
+		    Layout.fillWidth: true
+		    text: "DEC: " + skyViewController.formattedDEC
+		    color: "#FFFFFF"
+		    font.pixelSize: 16
+		}
+	    }
+
+	    Text {
+		Layout.fillWidth: true
+		text: "Location: " + 
+		    skyViewController.location.latitude.toFixed(4) + ", " + 
+		    skyViewController.location.longitude.toFixed(4)
+		color: "#FFFFFF"
+		font.pixelSize: 14
+	    }
+
+	    Text {
+		Layout.fillWidth: true
+		text: skyViewController.locationStatus
+		color: skyViewController.isGPSEnabled ? "#90EE90" : "#FFA07A"  // Light green if GPS enabled, light salmon if not
+		font.pixelSize: 14
+	    }
+
+	    Text {
+		Layout.fillWidth: true
+		text: "DSOs in view: " + skyViewController.visibleDSOs.length
+		color: "#FFFFFF"
+		font.pixelSize: 14
+	    }
+	}
+    }    
+
     // Settings drawer
     Drawer {
         id: settingsDrawer

@@ -91,6 +91,7 @@ void AstronomyCalculator::equatorialToHorizontal(double ra, double dec, double* 
     *azimuth = radiansToDegrees(azRad);
 }
 
+/*
 void AstronomyCalculator::horizontalToEquatorial(double azimuth, double altitude, double* ra, double* dec)
 {
     // Convert to radians
@@ -126,6 +127,7 @@ void AstronomyCalculator::horizontalToEquatorial(double azimuth, double altitude
     *ra = rightAscension;
     *dec = radiansToDegrees(decRad);
 }
+*/
 
 double AstronomyCalculator::angularSeparation(double az1, double alt1, double az2, double alt2)
 {
@@ -167,4 +169,105 @@ double AstronomyCalculator::normalizeAngle(double angle, double min, double max)
     }
     
     return normalized + min;
+}
+
+// Now implement these methods in AstronomyCalculator.cpp:
+
+double AstronomyCalculator::correctForRefraction(double apparentAltitude) const
+{
+    // Convert to radians
+    double altRad = degreesToRadians(apparentAltitude);
+    
+    // Calculate refraction in arcminutes for standard conditions
+    double refractionArcmin;
+    
+    if (apparentAltitude > 15.0) {
+        // Above 15° altitude - simpler formula
+        refractionArcmin = 1.02 / qTan(altRad + degreesToRadians(10.3 / (apparentAltitude + 5.11)));
+    }
+    else if (apparentAltitude >= 0.0) {
+        // Low altitude - more complex formula
+        double r = 0.1594 + apparentAltitude * (0.0196 + 0.00002 * apparentAltitude);
+        refractionArcmin = r * (1.0 / qTan(altRad));
+    }
+    else {
+        // Below horizon - use horizon value
+        refractionArcmin = 34.0;
+    }
+    
+    // Convert arcminutes to degrees and return true altitude
+    double refractionDegrees = refractionArcmin / 60.0;
+    return apparentAltitude - refractionDegrees;
+}
+
+void AstronomyCalculator::horizontalToJ2000(double azimuth, double altitude, double* raJ2000, double* decJ2000, double* hourAngle)
+{
+    // Apply refraction correction to get true altitude
+    double trueAltitude = correctForRefraction(altitude);
+    
+    // Convert to radians
+    double azRad = degreesToRadians(azimuth);
+    double altRad = degreesToRadians(trueAltitude);
+    double latRad = degreesToRadians(m_location.latitude());
+    
+    // Calculate declination
+    double sinDec = qSin(altRad) * qSin(latRad) + qCos(altRad) * qCos(latRad) * qCos(azRad);
+    double decRad = qAsin(sinDec);
+    
+    // Calculate hour angle using atan2 (more robust than acos)
+    double cosHA = (qSin(altRad) - qSin(latRad) * sinDec) / (qCos(latRad) * qCos(decRad));
+    double sinHA = -1.0 * qCos(altRad) * qSin(azRad) / qCos(decRad);
+    double haRad = qAtan2(sinHA, cosHA);
+    
+    // Convert hour angle to hours
+    double haHours = haRad * (12.0 / M_PI);
+    
+    // Ensure HA is in proper range (-12 to +12 hours)
+    if (haHours < -12.0)
+        haHours += 24.0;
+    else if (haHours > 12.0)
+        haHours -= 24.0;
+    
+    // Calculate Local Sidereal Time
+    double lst = calculateLST() / 15.0; // Convert to hours
+    
+    // Calculate right ascension
+    double rightAscension = lst - haHours;
+    
+    // Normalize to 0-24 range
+    rightAscension = normalizeAngle(rightAscension, 0.0, 24.0);
+    
+    // Convert RA from hours to degrees
+    double raDegrees = rightAscension * 15.0;
+    double decDegrees = radiansToDegrees(decRad);
+    
+    // Calculate Julian centuries since J2000.0
+    QDateTime currentDate = QDateTime::currentDateTimeUtc();
+    double julianDate = currentDate.date().toJulianDay();
+    double T = (julianDate - 2451545.0) / 36525.0;
+    
+    // Calculate correction factors (inverse of the standard precession)
+    double M = 1.2812323 * T + 0.0003879 * T * T + 0.0000101 * T * T * T;
+    double N = 0.5567530 * T - 0.0001185 * T * T + 0.0000116 * T * T * T;
+    
+    // Apply the inverse correction to get J2000 coordinates
+    double deltaRA = M + N * qSin(degreesToRadians(raDegrees)) * qTan(degreesToRadians(decDegrees));
+    double deltaDec = N * qCos(degreesToRadians(raDegrees));
+    
+    // Calculate J2000 coordinates
+    *raJ2000 = (raDegrees - deltaRA) / 15.0; // Convert back to hours
+    *decJ2000 = decDegrees - deltaDec;
+    
+    // Return hour angle if requested
+    if (hourAngle != nullptr) {
+        *hourAngle = haHours;
+    }
+}
+
+// Now replace the original horizontalToEquatorial method with our new J2000 version:
+
+void AstronomyCalculator::horizontalToEquatorial(double azimuth, double altitude, double* ra, double* dec)
+{
+    double hourAngle;
+    horizontalToJ2000(azimuth, altitude, ra, dec, &hourAngle);
 }

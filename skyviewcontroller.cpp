@@ -296,13 +296,13 @@ void SkyViewController::updateVisibleDSOs()
     for (const DSOObject &dso : m_dsoObjects) {
         double dsoAzimuth, dsoAltitude;
 	// Calculate the RA and DEC of the center of view
-	double ra, dec;
-	m_astronomyCalculator.horizontalToEquatorial(m_azimuth, m_altitude, &ra, &dec);
+	double raJ2000, decJ2000, hourAngle;
+	m_astronomyCalculator.horizontalToJ2000(m_azimuth, m_altitude, &raJ2000, &decJ2000, &hourAngle);
 
 	// Update RA and DEC if they've changed significantly
-	if (qAbs(ra - m_rightAscension) > 0.01 || qAbs(dec - m_declination) > 0.01) {
-	    m_rightAscension = ra;
-	    m_declination = dec;
+	if (qAbs(raJ2000 - m_rightAscension) > 0.01 || qAbs(decJ2000 - m_declination) > 0.01) {
+	    m_rightAscension = raJ2000;
+	    m_declination = decJ2000;
 	    emit rightAscensionChanged(m_rightAscension);
 	    emit declinationChanged(m_declination);
 	}
