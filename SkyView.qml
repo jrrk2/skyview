@@ -1,4 +1,4 @@
-// Updated SkyView.qml for cropped images with scaling
+// Modified SkyView.qml with fixed horizon at bottom of screen
 import QtQuick
 
 Item {
@@ -16,11 +16,31 @@ Item {
         z: 1
         gradient: Gradient {
             GradientStop { position: 0.0; color: "#000020" }  // Deep space blue at top
-            GradientStop { position: 1.0; color: "#000000" }  // Black at bottom
+            GradientStop { position: 0.9; color: "#000040" }  // Slightly lighter blue near horizon
         }
     }
     
-    // Stars
+    // Fixed horizon line at bottom of screen
+    Rectangle {
+        id: horizonLine
+        anchors.bottom: parent.bottom
+        width: parent.width
+        height: 1
+        color: "#404030"  // Subtle horizon line color
+        z: 10  // Above everything
+    }
+    
+    // Optional ground area below horizon (small strip for visual effect)
+    Rectangle {
+        id: ground
+        anchors.top: horizonLine.bottom
+        width: parent.width
+        height: 5  // Just a small strip
+        color: "#151510"  // Dark earth color
+        z: 10
+    }
+    
+    // Stars (could be replaced with a more sophisticated star field)
     Item {
         id: starField
         anchors.fill: parent
@@ -41,7 +61,7 @@ Item {
         }
     }
     
-    // Deep sky objects
+    // Deep sky objects - place in front of the stars
     Item {
         id: dsoContainer
         anchors.fill: parent
@@ -67,6 +87,9 @@ Item {
                     x: -width / 2
                     y: -height / 2
                 }
+                
+                // Visibility check for debugging - always show objects for now
+                visible: true
                 
                 // Create a clipping container for the image
                 Item {
@@ -110,7 +133,7 @@ Item {
                         // Center in parent
                         anchors.centerIn: parent
                         
-                        source: modelData.imageUrl || ""
+                        source: modelData.imageUrl
                         fillMode: Image.PreserveAspectFit
                         opacity: 0.9
                         visible: status === Image.Ready || status === Image.Loading
@@ -122,7 +145,7 @@ Item {
                         // Rotation to match celestial coordinates
                         rotation: -root.azimuth
                         
-                        // Show loading or error states
+                        // Debug output for image loading
                         onStatusChanged: {
                             if (status === Image.Error) {
                                 console.log("Failed to load image: " + source);
@@ -133,26 +156,15 @@ Item {
                     }
                 }
                 
-                // Show a type indicator based on object type (optional)
-                Rectangle {
-                    id: typeIndicator
-                    width: 8
-                    height: 8
-                    radius: 4
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.margins: 2
-                    color: {
-                        // Color based on type
-                        var type = modelData.objectType;
-                        if (type === "Galaxy") return "#FF5500";  // Orange for galaxies
-                        if (type === "Nebula") return "#FF0099";  // Pink for nebulae
-                        if (type === "Globular Cluster") return "#00AAFF"; // Blue for globular clusters
-                        if (type === "Open Cluster") return "#88FF00"; // Green for open clusters
-                        return "#FFFFFF"; // White for others
-                    }
-                    opacity: 0.8
-                    visible: false // Set to true if you want to enable type indicators
+                // Show altitude value for debugging
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.top
+                    anchors.bottomMargin: 2
+                    text: modelData.altitude ? modelData.altitude.toFixed(1) + "°" : ""
+                    color: "#AAAAFF"
+                    font.pixelSize: 9
+                    visible: false  // Set to true for debugging
                 }
                 
                 // DSO name label - placed below the image
@@ -290,6 +302,18 @@ Item {
                     font.pixelSize: 10
                 }
             }
+        }
+        
+        // Current altitude display for debugging
+        Text {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 10
+            text: "Alt: " + root.altitude.toFixed(1) + "°"
+            color: "#FFFFFF"
+            font.pixelSize: 12
+            style: Text.Outline
+            styleColor: "#000000"
         }
     }
     

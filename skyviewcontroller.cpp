@@ -226,32 +226,61 @@ void SkyViewController::onAzimuthChanged(double azimuth)
     emit azimuthChanged(m_azimuth);
     updateVisibleDSOs();
 }
+
+// Fix for the onPitchChanged method to correctly convert pitch to altitude
+// Place this in skyviewcontroller.cpp
+
+// Improved onPitchChanged method with better handling of negative altitudes
+// Place this in skyviewcontroller.cpp
+
 void SkyViewController::onPitchChanged(double pitch)
 {
-    // Based on observed behavior:
-    // - Pitch = 0° when flat on desk (pointing down), should be altitude = -90°
-    // - Pitch = 90° when pointing at horizon, should be altitude = 0°
-    // - Pitch = 180° when pointing straight up, should be altitude = 90°
+    // Debug the raw pitch value
+    qDebug() << "Raw pitch value from sensor:" << pitch;
     
-    double newAltitude;
+    // The iOS sensor typically provides pitch values in this range:
+    // Pitch = 0° when the device is flat on a table facing up
+    // Pitch = 90° when the device is vertical (portrait orientation)
+    // Pitch = 180° when the device is flat but facing down
+    // Pitch = 270° (or -90°) when device is vertical but upside down
+
+    // For astronomical altitude:
+    // +90° is zenith (directly overhead)
+    // 0° is horizon (looking straight ahead)
+    // -90° is nadir (directly below)
     
-    // Normalize pitch to 0-180 range if needed
-    if (pitch < 0) {
+    // Normalize pitch to 0-360 range (in case negative values are received)
+    while (pitch < 0) {
         pitch += 360;
     }
-    
-    // Simple linear transformation from device orientation to astronomical altitude
-    if (pitch <= 180) {
-        newAltitude = -90 + pitch;
-    } else {
-        // Handle the case where pitch wraps around (if device reports >180)
-        newAltitude = 270 - pitch;
+    while (pitch >= 360) {
+        pitch -= 360;
     }
     
-    // Keep altitude in valid range (-90 to +90)
+    // Convert pitch to astronomical altitude
+    double newAltitude;
+    
+    if (pitch <= 90) {
+        // Pitch 0-90: From looking straight up to looking at horizon
+        newAltitude = 90 - pitch;
+    } 
+    else if (pitch <= 270) {
+        // Pitch 90-270: From horizon down to looking straight down
+        newAltitude = 90 - pitch;
+    }
+    else {
+        // Pitch 270-360: From looking down back to looking up
+        newAltitude = 450 - pitch; // 450 = 90 + 360
+    }
+    
+    // Ensure altitude is in range -90 to +90
     newAltitude = qBound(-90.0, newAltitude, 90.0);
     
-    if (qAbs(newAltitude - m_altitude) > 1.0) {
+    // Debug the conversion
+    qDebug() << "Pitch:" << pitch << "→ Altitude:" << newAltitude;
+    
+    // Only update if the altitude has changed significantly
+    if (qAbs(newAltitude - m_altitude) > 0.5) {
         m_altitude = newAltitude;
         emit altitudeChanged(m_altitude);
         updateVisibleDSOs();
@@ -316,98 +345,6 @@ void SkyViewController::onLocationMetadataChanged()
     emit locationMetadataChanged();
 }
 
-/*
-void SkyViewController::updateVisibleDSOs()
-{
-   if (m_location == nullptr) {
-        qDebug() << "Skipping updateVisibleDSOs() - waiting for valid location";
-        return;
-    }
-
-    // Clear the current list of visible objects
-    m_visibleDSOs.clear();
-    
-    // Update astronomy calculator with current time and location
-    m_astronomyCalculator.setLocation(*m_location);
-    m_astronomyCalculator.setDateTime(QDateTime::currentDateTimeUtc());
-    
-    // Calculate the RA and DEC of the center of view
-    double raJ2000, decJ2000, hourAngle;
-    m_astronomyCalculator.horizontalToJ2000(m_azimuth, m_altitude, &raJ2000, &decJ2000, &hourAngle);
-
-    // Update RA and DEC if they've changed significantly
-    if (qAbs(raJ2000 - m_rightAscension) > 0.01 || qAbs(decJ2000 - m_declination) > 0.01) {
-        m_rightAscension = raJ2000;
-        m_declination = decJ2000;
-        emit rightAscensionChanged(m_rightAscension);
-        emit declinationChanged(m_declination);
-    }
-    
-    // Use a wide field of view for testing
-    const double testFieldOfView = 50.0; // 90 degrees - large portion of the sky
-    
-    // Check each DSO to see if it should be displayed
-    for (const DSOObject &dso : m_dsoObjects) {
-        double dsoAzimuth, dsoAltitude;
-        
-        // Convert equatorial coordinates to horizontal using our calculator
-        m_astronomyCalculator.equatorialToHorizontal(dso.rightAscension, dso.declination, &dsoAzimuth, &dsoAltitude);
-        
-        // Calculate angular distance between viewing direction and DSO
-        double angularSeparation = m_astronomyCalculator.angularSeparation(
-            m_azimuth, m_altitude, dsoAzimuth, dsoAltitude);
-        
-        // Scale factor based on angular size - normalize to display well
-        // Minimum size ensures small objects are still visible
-        // Angular sizes in catalog are in arcminutes (1/60 of a degree)
-        const double minSize = 30.0;  // Minimum display size (pixels)
-        const double maxSize = 300.0; // Maximum display size (pixels)
-        
-        // Convert arcminutes to degrees and scale
-        double sizeScaleFactor = dso.angularSize / 60.0 * 10.0; // Scale factor
-        // Apply log scaling for better distribution of sizes
-        double displaySize = 400.0; // qMin(maxSize, minSize + 50.0 * log10(1.0 + sizeScaleFactor));
-        
-        // If the DSO is within our wide field of view, add it to visible list
-        if (angularSeparation <= testFieldOfView / 2.0) {
-            QVariantMap dsoMap;
-            dsoMap["name"] = dso.name;
-            dsoMap["ra"] = dso.rightAscension;
-            dsoMap["dec"] = dso.declination;
-            dsoMap["imageUrl"] = dso.imageUrl;
-            dsoMap["azimuth"] = dsoAzimuth;
-            dsoMap["altitude"] = dsoAltitude;
-            dsoMap["angularSize"] = dso.angularSize;  // Original size in arcminutes
-            dsoMap["displaySize"] = displaySize;      // Scaled size for display
-            
-            // Calculate position in view coordinates (-1 to 1 range)
-            // Calculate azimuth difference properly across the 0/360 boundary
-            double azDiff = dsoAzimuth - m_azimuth;
-            if (azDiff > 180) azDiff -= 360;
-            if (azDiff < -180) azDiff += 360;
-            
-            // Convert angular difference to normalized screen coordinates
-            double normAzDiff = -azDiff / (testFieldOfView / 2.0);
-            double normAltDiff = -(dsoAltitude - m_altitude) / (testFieldOfView / 2.0);
-            
-            // Clamp values to ensure they're in display range (-0.9 to 0.9)
-            normAzDiff = qBound(-0.9, normAzDiff, 0.9);
-            normAltDiff = qBound(-0.9, normAltDiff, 0.9);
-            
-            dsoMap["viewX"] = normAzDiff;
-            dsoMap["viewY"] = normAltDiff;
-            
-            // For debugging, add angular separation
-            dsoMap["angularDistance"] = angularSeparation;
-            
-            m_visibleDSOs.append(dsoMap);
-        }
-    }
-    
-    emit visibleDSOsChanged();
-}
-*/
-
 // Now implement the getters in skyviewcontroller.cpp:
 
 double SkyViewController::rightAscension() const
@@ -450,6 +387,9 @@ QString SkyViewController::formattedDEC() const
                                    .arg(static_cast<int>(seconds), 2, 10, QChar('0'));
 }
 
+// Updated updateVisibleDSOs method with proper horizon filtering
+// This should be placed in skyviewcontroller.cpp
+
 void SkyViewController::updateVisibleDSOs()
 {
     // Clear the current list of visible objects
@@ -480,6 +420,9 @@ void SkyViewController::updateVisibleDSOs()
     // Use a wide field of view for testing
     const double testFieldOfView = 120.0; // 120 degrees - large portion of the sky
     
+    // Debug current viewing direction
+    qDebug() << "Current view direction: Azimuth" << m_azimuth << "Altitude" << m_altitude;
+    
     // Check each DSO to see if it should be displayed
     for (const DSOObject &dso : m_dsoObjects) {
         double dsoAzimuth, dsoAltitude;
@@ -487,59 +430,94 @@ void SkyViewController::updateVisibleDSOs()
         // Convert equatorial coordinates to horizontal using our calculator
         m_astronomyCalculator.equatorialToHorizontal(dso.rightAscension, dso.declination, &dsoAzimuth, &dsoAltitude);
         
+        // If debugging a specific object, output its coordinates
+        if (dso.name.contains("M27")) {
+            qDebug() << "M27 calculated position:"
+                     << "Az:" << dsoAzimuth
+                     << "Alt:" << dsoAltitude;
+        }
+        
         // Calculate angular distance between viewing direction and DSO
         double angularSeparation = m_astronomyCalculator.angularSeparation(
             m_azimuth, m_altitude, dsoAzimuth, dsoAltitude);
         
-        // If the DSO is within our wide field of view, add it to visible list
-        if (angularSeparation <= testFieldOfView / 2.0) {
-            QVariantMap dsoMap;
-            dsoMap["name"] = dso.name;
-            dsoMap["ra"] = dso.rightAscension;
-            dsoMap["dec"] = dso.declination;
-            dsoMap["imageUrl"] = dso.imageUrl;
-            dsoMap["azimuth"] = dsoAzimuth;
-            dsoMap["altitude"] = dsoAltitude;
-            dsoMap["angularSize"] = dso.angularSize;         // Original size in arcminutes
-            dsoMap["croppedWidth"] = dso.croppedWidth;       // Cropped width in pixels 
-            dsoMap["croppedHeight"] = dso.croppedHeight;     // Cropped height in pixels
-            
-            // Use the exact display size from the catalog if available,
-            // otherwise use a reasonable default
-            int displaySize = dso.displaySize > 0 ? dso.displaySize : 60;
-            
-            // Use the distance from center of view to adjust size slightly
-            // Objects at the edge of view are slightly smaller 
-            double distanceFactor = 1.0 - (angularSeparation / testFieldOfView);
-            displaySize = static_cast<int>(displaySize * (0.8 + 0.2 * distanceFactor));
-            
-            dsoMap["displaySize"] = displaySize;
-            
-            // Calculate position in view coordinates (-1 to 1 range)
-            // Calculate azimuth difference properly across the 0/360 boundary
-            double azDiff = dsoAzimuth - m_azimuth;
-            if (azDiff > 180) azDiff -= 360;
-            if (azDiff < -180) azDiff += 360;
-            
-            // Convert angular difference to normalized screen coordinates
-            double normAzDiff = -azDiff / (testFieldOfView / 2.0);
-            double normAltDiff = -(dsoAltitude - m_altitude) / (testFieldOfView / 2.0);
-            
-            // Clamp values to ensure they're in display range (-0.9 to 0.9)
-            normAzDiff = qBound(-0.9, normAzDiff, 0.9);
-            normAltDiff = qBound(-0.9, normAltDiff, 0.9);
-            
-            dsoMap["viewX"] = normAzDiff;
-            dsoMap["viewY"] = normAltDiff;
-            
-            // For debugging, add some info
-            dsoMap["angularDistance"] = angularSeparation;
-            dsoMap["scaleFactor"] = dso.scaleFactor;
-            
-            m_visibleDSOs.append(dsoMap);
+        // Transform the sky coordinates to screen coordinates
+        
+        // 1. First, determine if object is in the field of view
+        if (angularSeparation > testFieldOfView / 2.0) {
+            continue; // Skip objects outside the field of view
         }
+        
+        // 2. Create the data map for this object
+        QVariantMap dsoMap;
+        dsoMap["name"] = dso.name;
+        dsoMap["ra"] = dso.rightAscension;
+        dsoMap["dec"] = dso.declination;
+        dsoMap["imageUrl"] = dso.imageUrl;
+        dsoMap["azimuth"] = dsoAzimuth;
+        dsoMap["altitude"] = dsoAltitude;
+        dsoMap["angularSize"] = dso.angularSize;         // Original size in arcminutes
+        dsoMap["croppedWidth"] = dso.croppedWidth;       // Cropped width in pixels 
+        dsoMap["croppedHeight"] = dso.croppedHeight;     // Cropped height in pixels
+        
+        // 3. Determine display size
+        int displaySize = dso.displaySize > 0 ? dso.displaySize : 60;
+        
+        // Use the distance from center of view to adjust size slightly
+        // Objects at the edge of view are slightly smaller 
+        double distanceFactor = 1.0 - (angularSeparation / testFieldOfView);
+        displaySize = static_cast<int>(displaySize * (0.8 + 0.2 * distanceFactor));
+        
+        dsoMap["displaySize"] = displaySize;
+        
+        // 4. Calculate screen position
+        // Calculate azimuth difference properly across the 0/360 boundary
+        double azDiff = dsoAzimuth - m_azimuth;
+        if (azDiff > 180) azDiff -= 360;
+        if (azDiff < -180) azDiff += 360;
+        
+        // Convert angular difference to normalized screen coordinates
+        double normAzDiff = -azDiff / (testFieldOfView / 2.0);
+        
+        // For altitude, we need to map objects differently:
+        // - When we look at horizon (alt = 0), horizon should be at bottom of screen
+        // - When we look up (alt > 0), objects above horizon move up the screen
+        // - When we look down (alt < 0), objects below horizon would be visible
+        
+        // Calculate normalized altitude difference
+        double normAltDiff;
+        
+        // This approach keeps the horizon at the bottom of the screen
+        // regardless of where the user is looking
+        if (m_altitude <= 0) {
+            // When looking at or below horizon
+            normAltDiff = -dsoAltitude / (testFieldOfView / 2.0);
+        } else {
+            // When looking above horizon
+            normAltDiff = -(dsoAltitude - m_altitude) / (testFieldOfView / 2.0);
+        }
+        
+        // Only include objects above the horizon or with special visibility flag
+        if (dsoAltitude < 0) {
+            // Skip objects below horizon
+            continue;
+        }
+        
+        // Clamp values to ensure they're in display range (-0.9 to 0.9)
+        normAzDiff = qBound(-0.9, normAzDiff, 0.9);
+        normAltDiff = qBound(-0.9, normAltDiff, 0.9);
+        
+        dsoMap["viewX"] = normAzDiff;
+        dsoMap["viewY"] = normAltDiff;
+        
+        // For debugging, add some info
+        dsoMap["angularDistance"] = angularSeparation;
+        
+        // Add to the list of visible objects
+        m_visibleDSOs.append(dsoMap);
     }
     
+    qDebug() << "Showing" << m_visibleDSOs.size() << "objects";
     emit visibleDSOsChanged();
 }
 
@@ -590,3 +568,4 @@ void SkyViewController::loadDefaultDSOs()
     // Update visible objects based on current orientation
     updateVisibleDSOs();
 }
+
