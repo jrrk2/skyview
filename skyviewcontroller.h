@@ -84,6 +84,8 @@ signals:
 private slots:
     void onAzimuthChanged(double azimuth);
     void onPitchChanged(double pitch);
+    void onRollChanged(double pitch);
+    void onYawChanged(double pitch);
     void onLocationChanged(GeoCoordinate location);
     void onLocationError(const QString &errorMessage);
     void onLocationAuthorizationChanged(bool authorized);

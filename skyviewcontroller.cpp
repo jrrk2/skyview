@@ -18,6 +18,8 @@ SkyViewController::SkyViewController(QObject *parent)
     // Connect sensor signals
     connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
     connect(m_sensorBridge, &IOSSensorBridge::pitchChanged, this, &SkyViewController::onPitchChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::rollChanged, this, &SkyViewController::onRollChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::yawChanged, this, &SkyViewController::onYawChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationChanged, this, &SkyViewController::onLocationChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationErrorOccurred, this, &SkyViewController::onLocationError);
     connect(m_sensorBridge, &IOSSensorBridge::locationAuthorizationChanged, this, &SkyViewController::onLocationAuthorizationChanged);
@@ -285,6 +287,16 @@ void SkyViewController::onPitchChanged(double pitch)
         emit altitudeChanged(m_altitude);
         updateVisibleDSOs();
     }
+}
+
+void SkyViewController::onRollChanged(double roll)
+{
+  qDebug() << "Roll:" << roll;
+}
+
+void SkyViewController::onYawChanged(double yaw)
+{
+  qDebug() << "Yaw:" << yaw;
 }
 
 void SkyViewController::onLocationChanged(GeoCoordinate location)
