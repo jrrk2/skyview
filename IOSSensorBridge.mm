@@ -102,11 +102,8 @@ public:
                 if (motion && m_bridge) {
                     // Get the device orientation in space
                     CMAttitude* attitude = motion.attitude;
-                    CMQuaternion cmQuat = motion.attitude.quaternion;
-                    QQuaternion qtQuat(cmQuat.w, cmQuat.x, cmQuat.y, cmQuat.z);
 		    CMRotationMatrix matrix = attitude.rotationMatrix;
                     // Send the attitude data to our C++ bridge
-                    m_bridge->updateAttitude(qtQuat);
 		    m_bridge->updateRotationMatrix(matrix.m11, matrix.m12, matrix.m13,
                              matrix.m21, matrix.m22, matrix.m23,
                              matrix.m31, matrix.m32, matrix.m33);
@@ -172,7 +169,6 @@ private:
 IOSSensorBridge::IOSSensorBridge(QObject* parent) 
     : QObject(parent), 
       m_azimuth(0.0), 
-      m_attitude(QQuaternion()),
       m_gpsEnabled(false),
       m_locationAuthorized(false),
       m_lastGPSError(""),
@@ -196,10 +192,6 @@ void IOSSensorBridge::stopSensors() {
 
 double IOSSensorBridge::azimuth() const {
     return m_azimuth;
-}
-
-QQuaternion IOSSensorBridge::quaternion() const {
-    return m_attitude;
 }
 
 GeoCoordinate IOSSensorBridge::location() const {
@@ -246,11 +238,6 @@ double IOSSensorBridge::locationCourse() const {
 void IOSSensorBridge::updateHeading(double heading) {
     m_azimuth = heading;
     emit azimuthChanged(m_azimuth);
-}
-
-void IOSSensorBridge::updateAttitude(QQuaternion attitude) {
-    m_attitude = attitude;
-    emit quaternionChanged(m_attitude);
 }
 
 void IOSSensorBridge::updateLocation(double latitude, double longitude, double altitude,

@@ -20,7 +20,6 @@ SkyViewController::SkyViewController(QObject *parent)
 {
     // Connect sensor signals
     connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::quaternionChanged, this, &SkyViewController::onAttitudeChanged);
     connect(m_sensorBridge, &IOSSensorBridge::rotationMatrixChanged, this, &SkyViewController::onRotationMatrixChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationChanged, this, &SkyViewController::onLocationChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationErrorOccurred, this, &SkyViewController::onLocationError);
@@ -224,7 +223,7 @@ void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix)
     
     // Calculate altitude from y component (altitude = asin(y))
     double sinAltitude = y;
-    double newAltitude = qRadiansToDegrees(qAsin(sinAltitude));
+    double newAltitude = -90.0 - qRadiansToDegrees(qAsin(sinAltitude));
     
     // Calculate azimuth from x and z components
     double horizontalLength = sqrt(x*x + z*z);
@@ -254,80 +253,6 @@ void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix)
     updateVisibleDSOs();
 }
 
-void SkyViewController::onAttitudeChanged(QQuaternion quaternion)
-{
-    // Store raw quaternion for debugging
-    m_rawQuaternion = quaternion;
-    emit quaternionChanged(m_rawQuaternion);
-
-    // Convert quaternion to rotation matrix - this avoids gimbal lock issues
-    QMatrix4x4 rotationMatrix;
-    rotationMatrix.rotate(quaternion);
-    
-    // We want to map the device orientation to standard astronomical coordinates:
-    // - When flat on table (screen up): altitude = -90° (down)
-    // - When vertical pointing north: altitude = 0°, azimuth = 0°
-    // - When pointing straight up: altitude = 90°
-    
-    // For a device in portrait orientation:
-    // - Screen normal (Z-axis) is the primary viewing direction
-    // - When flat, Z points up (opposite of altitude direction)
-    QVector3D viewDirection(0.0, 0.0, -1.0);
-    
-    // Transform to world coordinates
-    QVector3D worldDirection = rotationMatrix * viewDirection;
-    worldDirection.normalize();
-    
-    // Store components for debugging
-    m_debugDirX = worldDirection.x();
-    m_debugDirY = worldDirection.y();
-    m_debugDirZ = worldDirection.z();
-    
-    // Calculate altitude from the Y component (up/down)
-    // Y = sin(altitude)
-    double sinAltitude = worldDirection.y();
-    double newAltitude = qRadiansToDegrees(qAsin(sinAltitude));
-    
-    // For azimuth, project onto XZ plane
-    double x = worldDirection.x();
-    double z = worldDirection.z();
-    
-    // Calculate horizontal component length
-    double horizontalLength = sqrt(x*x + z*z);
-    
-    double newAzimuth;
-    if (horizontalLength < 0.01) {
-        // Near vertical, keep previous azimuth to avoid jumps
-        newAzimuth = m_azimuth;
-    } else {
-        // Calculate azimuth - angle from north in clockwise direction
-        // North is negative Z, East is positive X
-        newAzimuth = qRadiansToDegrees(atan2(x, -z));
-        if (newAzimuth < 0.0)
-            newAzimuth += 360.0;
-    }
-    
-    // Apply stronger stabilization at vertical extremes
-    if (qAbs(newAltitude) > 85.0) {
-        // Near vertical, require larger change to update azimuth
-        if (qAbs(newAzimuth - m_azimuth) < 5.0) {
-            newAzimuth = m_azimuth;
-        }
-    }
-    
-    // Only update if changed significantly
-    if (qAbs(newAltitude - m_altitude) > 0.5) {
-        m_altitude = newAltitude;
-        emit altitudeChanged(m_altitude);
-    }
-    
-    if (qAbs(newAzimuth - m_azimuth) > 0.5) {
-        m_azimuth = newAzimuth;
-        emit azimuthChanged(m_azimuth);
-    }
-    
-    updateVisibleDSOs();
-}
 
 void SkyViewController::onLocationChanged(GeoCoordinate location)
 {

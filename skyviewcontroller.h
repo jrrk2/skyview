@@ -3,7 +3,6 @@
 
 #include <QObject>
 #include <QDateTime>
-#include <QQuaternion>
 #include <QMatrix3x3>
 #include <QVector3D>
 #include "GeoCoordinate.h"
@@ -30,12 +29,6 @@ class SkyViewController : public QObject
     Q_OBJECT
     
     // Properties exposed to QML
-    Q_PROPERTY(QQuaternion quaternion READ quaternion NOTIFY quaternionChanged)
-    Q_PROPERTY(double quaternionX READ quaternionX NOTIFY quaternionChanged)
-    Q_PROPERTY(double quaternionY READ quaternionY NOTIFY quaternionChanged)
-    Q_PROPERTY(double quaternionZ READ quaternionZ NOTIFY quaternionChanged)
-    Q_PROPERTY(double quaternionW READ quaternionW NOTIFY quaternionChanged)
-    // Add to the Q_PROPERTY section:
     Q_PROPERTY(double m11 READ m11 NOTIFY debugDataChanged)
     Q_PROPERTY(double m12 READ m12 NOTIFY debugDataChanged)
     Q_PROPERTY(double m13 READ m13 NOTIFY debugDataChanged)
@@ -73,11 +66,6 @@ public:
     double declination() const;
     QString formattedRA() const;
     QString formattedDEC() const;
-    QQuaternion quaternion() const { return m_rawQuaternion; }
-    double quaternionX() const { return m_rawQuaternion.x(); }
-    double quaternionY() const { return m_rawQuaternion.y(); }
-    double quaternionZ() const { return m_rawQuaternion.z(); }
-    double quaternionW() const { return m_rawQuaternion.scalar(); }
     // Add to the public section:
     double m11() const { return m_rotationMatrix.m11; }
     double m12() const { return m_rotationMatrix.m12; }
@@ -105,7 +93,6 @@ public:
 signals:
     void azimuthChanged(double azimuth);
     void altitudeChanged(double altitude);
-    void quaternionChanged(QQuaternion quaternion);
     void visibleDSOsChanged();
     void locationChanged();
     void gpsStatusChanged(bool enabled);
@@ -117,7 +104,6 @@ signals:
     
 private slots:
     void onAzimuthChanged(double azimuth);
-    void onAttitudeChanged(QQuaternion);
     void onRotationMatrixChanged(const RotationMatrix& matrix);
     void onLocationChanged(GeoCoordinate location);
     void onLocationError(const QString &errorMessage);
@@ -136,7 +122,6 @@ private:
     double m_debugRoll, m_debugPitch, m_debugYaw, m_debugDirX, m_debugDirY, m_debugDirZ;
     double m_azimuth;    // compass direction in degrees (0 = North, 90 = East)
     double m_altitude;   // tilt angle in degrees (-90 = down, 0 = horizontal, 90 = up)
-    QQuaternion m_rawQuaternion;
     RotationMatrix m_rotationMatrix;
   
     // Location and time

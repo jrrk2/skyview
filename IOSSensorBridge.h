@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QString>
 #include <string>
-#include <QQuaternion>
 
 #include "GeoCoordinate.h"
 
@@ -22,7 +21,6 @@ class IOSSensorBridge : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(double azimuth READ azimuth NOTIFY azimuthChanged)
-    Q_PROPERTY(QQuaternion quaternion READ quaternion NOTIFY quaternionChanged)
     Q_PROPERTY(GeoCoordinate location READ location NOTIFY locationChanged)
     Q_PROPERTY(bool locationAuthorized READ isLocationAuthorized NOTIFY locationAuthorizationChanged)
     Q_PROPERTY(QString lastGPSError READ lastGPSError NOTIFY locationErrorOccurred)
@@ -55,7 +53,6 @@ public:
     
     // Property getters
     double azimuth() const;
-    QQuaternion quaternion() const;
     GeoCoordinate location() const;
     bool isLocationAuthorized() const;
     QString lastGPSError() const;
@@ -65,7 +62,6 @@ public:
     
     // Methods called from Objective-C code
     void updateHeading(double heading);
-    void updateAttitude(QQuaternion); 
     void updateLocation(double latitude, double longitude, double altitude = 0.0,
                       double horizontalAccuracy = 0.0, double verticalAccuracy = -1.0,
                       double speed = 0.0, double course = 0.0);
@@ -91,7 +87,6 @@ public:
   
 signals:
     void azimuthChanged(double azimuth);
-    void quaternionChanged(QQuaternion);
     void rotationMatrixChanged(const RotationMatrix& matrix);
     void locationChanged(GeoCoordinate location);
     void locationErrorOccurred(const QString& errorMessage);
@@ -103,7 +98,6 @@ private:
     
     // Cached sensor values
     double m_azimuth;
-    QQuaternion m_attitude;
     GeoCoordinate m_location;
     RotationMatrix m_rotationMatrix;
   
