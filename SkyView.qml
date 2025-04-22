@@ -150,7 +150,7 @@ Item {
                             if (status === Image.Error) {
                                 console.log("Failed to load image: " + source);
                             } else if (status === Image.Ready) {
-                                console.log("Image loaded successfully: " + source);
+                                // console.log("Image loaded successfully: " + source);
                             }
                         }
                     }
@@ -166,6 +166,18 @@ Item {
                     font.pixelSize: 9
                     visible: false  // Set to true for debugging
                 }
+
+		Text {
+                    text: modelData.rawPitch ? modelData.rawPitch.toFixed(1) + "°" : "pitch?"
+		    color: "#FFFFFF"
+		    font.pixelSize: 9
+		}
+
+		Text {
+                    text: modelData.rawRoll ? modelData.rawRoll.toFixed(1) + "°" : "roll?"
+		    color: "#FFFFFF"
+		    font.pixelSize: 16
+		}
                 
                 // DSO name label - placed below the image
                 Text {

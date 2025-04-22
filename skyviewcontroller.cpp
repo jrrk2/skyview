@@ -2,6 +2,9 @@
 #include "skyviewcontroller.h"
 #include <QtMath>
 #include <QVariantMap>
+#include <QMatrix4x4>
+#include <QMatrix3x3>
+#include <QVector3D>
 
 SkyViewController::SkyViewController(QObject *parent)
     : QObject(parent),
@@ -17,9 +20,7 @@ SkyViewController::SkyViewController(QObject *parent)
 {
     // Connect sensor signals
     connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::pitchChanged, this, &SkyViewController::onPitchChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::rollChanged, this, &SkyViewController::onRollChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::yawChanged, this, &SkyViewController::onYawChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::quaternionChanged, this, &SkyViewController::onAttitudeChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationChanged, this, &SkyViewController::onLocationChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationErrorOccurred, this, &SkyViewController::onLocationError);
     connect(m_sensorBridge, &IOSSensorBridge::locationAuthorizationChanged, this, &SkyViewController::onLocationAuthorizationChanged);
@@ -170,47 +171,6 @@ void SkyViewController::addCustomDSO(const QString &name, double ra, double dec,
     updateVisibleDSOs();
 }
 
-/*
-// Updated loadDefaultDSOs method that uses the converted MessierCatalog
-void SkyViewController::loadDefaultDSOs()
-{
-    // Clear existing objects
-    m_dsoObjects.clear();
-    
-    // Load data from the C++ MessierCatalog
-    for (const MessierObject& messierObj : MessierCatalog) {
-        DSOObject dso;
-        
-        // Set basic properties
-        dso.name = QString::fromStdString(messierObj.name);
-        if (!messierObj.commonName.empty()) {
-            dso.name += " - " + QString::fromStdString(messierObj.commonName);
-        }
-        
-        dso.rightAscension = messierObj.raHours;
-        dso.declination = messierObj.decDegrees;
-        
-        // Get the larger dimension for scaling
-        dso.angularSize = std::max(messierObj.sizeArcminWidth, messierObj.sizeArcminHeight);
-        
-        // Set image URL based on Messier number (e.g., "M31" -> "m31.jpg")
-        QString id = QString::fromStdString(messierObj.name).toLower();
-        dso.imageUrl = QUrl("qrc:/images/" + id + ".jpg");
-        
-        // Add to our collection
-        m_dsoObjects.append(dso);
-        
-        qDebug() << "Loaded" << dso.name << "RA:" << dso.rightAscension 
-                 << "Dec:" << dso.declination << "Size:" << dso.angularSize;
-    }
-    
-    qDebug() << "Loaded" << m_dsoObjects.size() << "Messier objects";
-    
-    // Update the UI
-    updateVisibleDSOs();
-}
-*/
-
 void SkyViewController::startSensors()
 {
     m_sensorBridge->startSensors();
@@ -229,74 +189,51 @@ void SkyViewController::onAzimuthChanged(double azimuth)
     updateVisibleDSOs();
 }
 
-// Fix for the onPitchChanged method to correctly convert pitch to altitude
-// Place this in skyviewcontroller.cpp
-
-// Improved onPitchChanged method with better handling of negative altitudes
-// Place this in skyviewcontroller.cpp
-
-void SkyViewController::onPitchChanged(double pitch)
+void SkyViewController::onAttitudeChanged(QQuaternion quaternion)
 {
-    // Debug the raw pitch value
-    qDebug() << "Raw pitch value from sensor:" << pitch;
-    
-    // The iOS sensor typically provides pitch values in this range:
-    // Pitch = 0° when the device is flat on a table facing up
-    // Pitch = 90° when the device is vertical (portrait orientation)
-    // Pitch = 180° when the device is flat but facing down
-    // Pitch = 270° (or -90°) when device is vertical but upside down
+    qDebug() << quaternion.x() << quaternion.y() << quaternion.z() << "\n";
+    // Store raw quaternion for debugging
+    m_rawQuaternion = quaternion;
+    emit quaternionChanged(m_rawQuaternion);
 
-    // For astronomical altitude:
-    // +90° is zenith (directly overhead)
-    // 0° is horizon (looking straight ahead)
-    // -90° is nadir (directly below)
+    // Convert quaternion to 4x4 matrix
+    QMatrix4x4 rotationMatrix4x4;
+    rotationMatrix4x4.rotate(quaternion);
+
+    // Define your viewing direction
+    QVector3D viewDirection(1.0, 0.0, 0.0);  // Adjust based on your coordinate system
+        
+    // Transform the vector
+    QVector3D worldDirection = rotationMatrix4x4 * viewDirection;
     
-    // Normalize pitch to 0-360 range (in case negative values are received)
-    while (pitch < 0) {
-        pitch += 360;
-    }
-    while (pitch >= 360) {
-        pitch -= 360;
-    }
+    // Calculate altitude and azimuth
+    // Normalize the vector to be safe
+    worldDirection.normalize();
     
-    // Convert pitch to astronomical altitude
-    double newAltitude;
+    // Calculate altitude (elevation angle)
+    double newAltitude = qRadiansToDegrees(qAcos(worldDirection.z()));
     
-    if (pitch <= 90) {
-        // Pitch 0-90: From looking straight up to looking at horizon
-        newAltitude = 90 - pitch;
-    } 
-    else if (pitch <= 270) {
-        // Pitch 90-270: From horizon down to looking straight down
-        newAltitude = 90 - pitch;
-    }
-    else {
-        // Pitch 270-360: From looking down back to looking up
-        newAltitude = 450 - pitch; // 450 = 90 + 360
-    }
+    // Convert to astronomical altitude convention (-90° to +90°)
+    newAltitude = 90.0 - newAltitude;
     
-    // Ensure altitude is in range -90 to +90
-    newAltitude = qBound(-90.0, newAltitude, 90.0);
+    // Calculate azimuth
+    double newAzimuth = qRadiansToDegrees(qAtan2(worldDirection.y(), worldDirection.x()));
     
-    // Debug the conversion
-    qDebug() << "Pitch:" << pitch << "→ Altitude:" << newAltitude;
+    // Convert to standard azimuth convention (0-360°, 0=North, 90=East)
+    newAzimuth = fmod(90.0 - newAzimuth + 360.0, 360.0);
     
-    // Only update if the altitude has changed significantly
+    // Update if changed
     if (qAbs(newAltitude - m_altitude) > 0.5) {
         m_altitude = newAltitude;
         emit altitudeChanged(m_altitude);
-        updateVisibleDSOs();
     }
-}
-
-void SkyViewController::onRollChanged(double roll)
-{
-  qDebug() << "Roll:" << roll;
-}
-
-void SkyViewController::onYawChanged(double yaw)
-{
-  qDebug() << "Yaw:" << yaw;
+    
+    if (qAbs(newAzimuth - m_azimuth) > 0.5) {
+        m_azimuth = newAzimuth;
+        emit azimuthChanged(m_azimuth);
+    }
+    
+    updateVisibleDSOs();
 }
 
 void SkyViewController::onLocationChanged(GeoCoordinate location)
@@ -433,7 +370,7 @@ void SkyViewController::updateVisibleDSOs()
     const double testFieldOfView = 120.0; // 120 degrees - large portion of the sky
     
     // Debug current viewing direction
-    qDebug() << "Current view direction: Azimuth" << m_azimuth << "Altitude" << m_altitude;
+    // qDebug() << "Current view direction: Azimuth" << m_azimuth << "Altitude" << m_altitude;
     
     // Check each DSO to see if it should be displayed
     for (const DSOObject &dso : m_dsoObjects) {
@@ -443,8 +380,8 @@ void SkyViewController::updateVisibleDSOs()
         m_astronomyCalculator.equatorialToHorizontal(dso.rightAscension, dso.declination, &dsoAzimuth, &dsoAltitude);
         
         // If debugging a specific object, output its coordinates
-        if (dso.name.contains("M27")) {
-            qDebug() << "M27 calculated position:"
+        if (dso.name.contains("M0")) {
+	  qDebug() << dso.name << " calculated position:"
                      << "Az:" << dsoAzimuth
                      << "Alt:" << dsoAltitude;
         }
@@ -529,7 +466,7 @@ void SkyViewController::updateVisibleDSOs()
         m_visibleDSOs.append(dsoMap);
     }
     
-    qDebug() << "Showing" << m_visibleDSOs.size() << "objects";
+    // qDebug() << "Showing" << m_visibleDSOs.size() << "objects";
     emit visibleDSOsChanged();
 }
 
@@ -567,12 +504,13 @@ void SkyViewController::loadDefaultDSOs()
         
         // Add to the collection
         m_dsoObjects.append(dso);
-        
+	/*        
         qDebug() << "Loaded DSO:" << dso.name 
                  << "RA:" << dso.rightAscension 
                  << "Dec:" << dso.declination 
                  << "Size:" << dso.angularSize
                  << "Display Size:" << dso.displaySize;
+	*/
     }
     
     qDebug() << "Loaded" << m_dsoObjects.size() << "Messier objects";

@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QString>
 #include <string>
+#include <QQuaternion>
+
 #include "GeoCoordinate.h"
 
 // Forward declaration of implementation class
@@ -14,9 +16,7 @@ class IOSSensorBridge : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(double azimuth READ azimuth NOTIFY azimuthChanged)
-    Q_PROPERTY(double pitch READ pitch NOTIFY pitchChanged)
-    Q_PROPERTY(double roll READ roll NOTIFY rollChanged)
-    Q_PROPERTY(double yaw READ yaw NOTIFY yawChanged)
+    Q_PROPERTY(QQuaternion quaternion READ quaternion NOTIFY quaternionChanged)
     Q_PROPERTY(GeoCoordinate location READ location NOTIFY locationChanged)
     Q_PROPERTY(bool locationAuthorized READ isLocationAuthorized NOTIFY locationAuthorizationChanged)
     Q_PROPERTY(QString lastGPSError READ lastGPSError NOTIFY locationErrorOccurred)
@@ -49,9 +49,7 @@ public:
     
     // Property getters
     double azimuth() const;
-    double pitch() const;
-    double roll() const;
-    double yaw() const;
+    QQuaternion quaternion() const;
     GeoCoordinate location() const;
     bool isLocationAuthorized() const;
     QString lastGPSError() const;
@@ -61,7 +59,7 @@ public:
     
     // Methods called from Objective-C code
     void updateHeading(double heading);
-    void updateAttitude(double pitch, double roll, double yaw);
+    void updateAttitude(QQuaternion); 
     void updateLocation(double latitude, double longitude, double altitude = 0.0,
                       double horizontalAccuracy = 0.0, double verticalAccuracy = -1.0,
                       double speed = 0.0, double course = 0.0);
@@ -70,9 +68,7 @@ public:
     
 signals:
     void azimuthChanged(double azimuth);
-    void pitchChanged(double pitch);
-    void rollChanged(double roll);
-    void yawChanged(double yaw);
+    void quaternionChanged(QQuaternion);
     void locationChanged(GeoCoordinate location);
     void locationErrorOccurred(const QString& errorMessage);
     void locationAuthorizationChanged(bool authorized);
@@ -83,9 +79,7 @@ private:
     
     // Cached sensor values
     double m_azimuth;
-    double m_pitch;
-    double m_roll;
-    double m_yaw;
+    QQuaternion m_attitude;
     GeoCoordinate m_location;
     
     // GPS status

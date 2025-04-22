@@ -102,14 +102,10 @@ public:
                 if (motion && m_bridge) {
                     // Get the device orientation in space
                     CMAttitude* attitude = motion.attitude;
-                    
-                    // Convert to Euler angles in degrees
-                    double pitch = attitude.pitch * 180.0 / M_PI;
-                    double roll = attitude.roll * 180.0 / M_PI;
-                    double yaw = attitude.yaw * 180.0 / M_PI;
-                    
+                    CMQuaternion cmQuat = motion.attitude.quaternion;
+                    QQuaternion qtQuat(cmQuat.w, cmQuat.x, cmQuat.y, cmQuat.z);
                     // Send the attitude data to our C++ bridge
-                    m_bridge->updateAttitude(pitch, roll, yaw);
+                    m_bridge->updateAttitude(qtQuat);
                 }
             }];
         }
@@ -172,9 +168,7 @@ private:
 IOSSensorBridge::IOSSensorBridge(QObject* parent) 
     : QObject(parent), 
       m_azimuth(0.0), 
-      m_pitch(0.0), 
-      m_roll(0.0), 
-      m_yaw(0.0),
+      m_attitude(QQuaternion()),
       m_gpsEnabled(false),
       m_locationAuthorized(false),
       m_lastGPSError(""),
@@ -200,16 +194,8 @@ double IOSSensorBridge::azimuth() const {
     return m_azimuth;
 }
 
-double IOSSensorBridge::pitch() const {
-    return m_pitch;
-}
-
-double IOSSensorBridge::roll() const {
-    return m_roll;
-}
-
-double IOSSensorBridge::yaw() const {
-    return m_yaw;
+QQuaternion IOSSensorBridge::quaternion() const {
+    return m_attitude;
 }
 
 GeoCoordinate IOSSensorBridge::location() const {
@@ -258,14 +244,9 @@ void IOSSensorBridge::updateHeading(double heading) {
     emit azimuthChanged(m_azimuth);
 }
 
-void IOSSensorBridge::updateAttitude(double pitch, double roll, double yaw) {
-    m_pitch = pitch;
-    m_roll = roll;
-    m_yaw = yaw;
-    
-    emit pitchChanged(m_pitch);
-    emit rollChanged(m_roll);
-    emit yawChanged(m_yaw);
+void IOSSensorBridge::updateAttitude(QQuaternion attitude) {
+    m_attitude = attitude;
+    emit quaternionChanged(m_attitude);
 }
 
 void IOSSensorBridge::updateLocation(double latitude, double longitude, double altitude,

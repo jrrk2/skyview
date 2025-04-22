@@ -3,6 +3,9 @@
 
 #include <QObject>
 #include <QDateTime>
+#include <QQuaternion>
+#include <QMatrix3x3>
+#include <QVector3D>
 #include "GeoCoordinate.h"
 #include <QHash>
 #include <QString>
@@ -27,6 +30,7 @@ class SkyViewController : public QObject
     Q_OBJECT
     
     // Properties exposed to QML
+    Q_PROPERTY(QQuaternion quaternion READ quaternion NOTIFY quaternionChanged)
     Q_PROPERTY(double azimuth READ azimuth NOTIFY azimuthChanged)
     Q_PROPERTY(double altitude READ altitude NOTIFY altitudeChanged)
     Q_PROPERTY(QVariantList visibleDSOs READ visibleDSOs NOTIFY visibleDSOsChanged)
@@ -55,6 +59,7 @@ public:
     double declination() const;
     QString formattedRA() const;
     QString formattedDEC() const;
+    QQuaternion quaternion() const { return m_rawQuaternion; }
     
     // Setters
     void setLocation(const GeoCoordinate &location);
@@ -73,6 +78,7 @@ public:
 signals:
     void azimuthChanged(double azimuth);
     void altitudeChanged(double altitude);
+    void quaternionChanged(QQuaternion quaternion);
     void visibleDSOsChanged();
     void locationChanged();
     void gpsStatusChanged(bool enabled);
@@ -83,9 +89,7 @@ signals:
     
 private slots:
     void onAzimuthChanged(double azimuth);
-    void onPitchChanged(double pitch);
-    void onRollChanged(double pitch);
-    void onYawChanged(double pitch);
+    void onAttitudeChanged(QQuaternion);
     void onLocationChanged(GeoCoordinate location);
     void onLocationError(const QString &errorMessage);
     void onLocationAuthorizationChanged(bool authorized);
@@ -102,7 +106,8 @@ private:
     // Current orientation
     double m_azimuth;    // compass direction in degrees (0 = North, 90 = East)
     double m_altitude;   // tilt angle in degrees (-90 = down, 0 = horizontal, 90 = up)
-    
+    QQuaternion m_rawQuaternion;
+  
     // Location and time
     GeoCoordinate *m_location = nullptr;
     bool m_manualLocationMode;
