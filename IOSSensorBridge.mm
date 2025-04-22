@@ -104,8 +104,12 @@ public:
                     CMAttitude* attitude = motion.attitude;
                     CMQuaternion cmQuat = motion.attitude.quaternion;
                     QQuaternion qtQuat(cmQuat.w, cmQuat.x, cmQuat.y, cmQuat.z);
+		    CMRotationMatrix matrix = attitude.rotationMatrix;
                     // Send the attitude data to our C++ bridge
                     m_bridge->updateAttitude(qtQuat);
+		    m_bridge->updateRotationMatrix(matrix.m11, matrix.m12, matrix.m13,
+                             matrix.m21, matrix.m22, matrix.m23,
+                             matrix.m31, matrix.m32, matrix.m33);
                 }
             }];
         }

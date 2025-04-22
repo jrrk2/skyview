@@ -21,6 +21,7 @@ SkyViewController::SkyViewController(QObject *parent)
     // Connect sensor signals
     connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
     connect(m_sensorBridge, &IOSSensorBridge::quaternionChanged, this, &SkyViewController::onAttitudeChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::rotationMatrixChanged, this, &SkyViewController::onRotationMatrixChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationChanged, this, &SkyViewController::onLocationChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationErrorOccurred, this, &SkyViewController::onLocationError);
     connect(m_sensorBridge, &IOSSensorBridge::locationAuthorizationChanged, this, &SkyViewController::onLocationAuthorizationChanged);
@@ -189,40 +190,132 @@ void SkyViewController::onAzimuthChanged(double azimuth)
     updateVisibleDSOs();
 }
 
+void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix)
+{
+    m_rotationMatrix = matrix;
+    
+    // The rotation matrix from Core Motion represents how to transform
+    // from the reference frame (N-E-Down) to the device frame
+    
+    // To get the device's viewing direction in the reference frame,
+    // we need to apply the inverse of this transformation
+    
+    // For viewing direction, use device's Z-axis (perpendicular to screen)
+    // In device coordinates, this is (0,0,-1) (out of back of device)
+    
+    // Apply inverse transformation (transpose of rotation matrix)
+    float x = -matrix.m13;  // Third column, first row (negative for inverse)
+    float y = -matrix.m23;  // Third column, second row 
+    float z = -matrix.m33;  // Third column, third row
+    
+    // Normalize the vector
+    float length = sqrt(x*x + y*y + z*z);
+    if (length > 0.0001f) {
+        x /= length;
+        y /= length;
+        z /= length;
+    }
+    
+    // Store for debugging
+    m_debugDirX = x;
+    m_debugDirY = y;
+    m_debugDirZ = z;
+    emit debugDataChanged();
+    
+    // Calculate altitude from y component (altitude = asin(y))
+    double sinAltitude = y;
+    double newAltitude = qRadiansToDegrees(qAsin(sinAltitude));
+    
+    // Calculate azimuth from x and z components
+    double horizontalLength = sqrt(x*x + z*z);
+    
+    double newAzimuth;
+    if (horizontalLength < 0.01) {
+        // Near vertical, use previous azimuth
+        newAzimuth = m_azimuth;
+    } else {
+        // Azimuth: angle from north (when x=0, z<0) clockwise
+        newAzimuth = qRadiansToDegrees(qAtan2(x, -z));
+        if (newAzimuth < 0.0)
+            newAzimuth += 360.0;
+    }
+    
+    // Only update if changed significantly
+    if (qAbs(newAltitude - m_altitude) > 0.5) {
+        m_altitude = newAltitude;
+        emit altitudeChanged(m_altitude);
+    }
+    
+    if (qAbs(newAzimuth - m_azimuth) > 0.5) {
+        m_azimuth = newAzimuth;
+        emit azimuthChanged(m_azimuth);
+    }
+    
+    updateVisibleDSOs();
+}
+
 void SkyViewController::onAttitudeChanged(QQuaternion quaternion)
 {
-    qDebug() << quaternion.x() << quaternion.y() << quaternion.z() << "\n";
     // Store raw quaternion for debugging
     m_rawQuaternion = quaternion;
     emit quaternionChanged(m_rawQuaternion);
 
-    // Convert quaternion to 4x4 matrix
-    QMatrix4x4 rotationMatrix4x4;
-    rotationMatrix4x4.rotate(quaternion);
-
-    // Define your viewing direction
-    QVector3D viewDirection(1.0, 0.0, 0.0);  // Adjust based on your coordinate system
-        
-    // Transform the vector
-    QVector3D worldDirection = rotationMatrix4x4 * viewDirection;
+    // Convert quaternion to rotation matrix - this avoids gimbal lock issues
+    QMatrix4x4 rotationMatrix;
+    rotationMatrix.rotate(quaternion);
     
-    // Calculate altitude and azimuth
-    // Normalize the vector to be safe
+    // We want to map the device orientation to standard astronomical coordinates:
+    // - When flat on table (screen up): altitude = -90° (down)
+    // - When vertical pointing north: altitude = 0°, azimuth = 0°
+    // - When pointing straight up: altitude = 90°
+    
+    // For a device in portrait orientation:
+    // - Screen normal (Z-axis) is the primary viewing direction
+    // - When flat, Z points up (opposite of altitude direction)
+    QVector3D viewDirection(0.0, 0.0, -1.0);
+    
+    // Transform to world coordinates
+    QVector3D worldDirection = rotationMatrix * viewDirection;
     worldDirection.normalize();
     
-    // Calculate altitude (elevation angle)
-    double newAltitude = qRadiansToDegrees(qAcos(worldDirection.z()));
+    // Store components for debugging
+    m_debugDirX = worldDirection.x();
+    m_debugDirY = worldDirection.y();
+    m_debugDirZ = worldDirection.z();
     
-    // Convert to astronomical altitude convention (-90° to +90°)
-    newAltitude = 90.0 - newAltitude;
+    // Calculate altitude from the Y component (up/down)
+    // Y = sin(altitude)
+    double sinAltitude = worldDirection.y();
+    double newAltitude = qRadiansToDegrees(qAsin(sinAltitude));
     
-    // Calculate azimuth
-    double newAzimuth = qRadiansToDegrees(qAtan2(worldDirection.y(), worldDirection.x()));
+    // For azimuth, project onto XZ plane
+    double x = worldDirection.x();
+    double z = worldDirection.z();
     
-    // Convert to standard azimuth convention (0-360°, 0=North, 90=East)
-    newAzimuth = fmod(90.0 - newAzimuth + 360.0, 360.0);
+    // Calculate horizontal component length
+    double horizontalLength = sqrt(x*x + z*z);
     
-    // Update if changed
+    double newAzimuth;
+    if (horizontalLength < 0.01) {
+        // Near vertical, keep previous azimuth to avoid jumps
+        newAzimuth = m_azimuth;
+    } else {
+        // Calculate azimuth - angle from north in clockwise direction
+        // North is negative Z, East is positive X
+        newAzimuth = qRadiansToDegrees(atan2(x, -z));
+        if (newAzimuth < 0.0)
+            newAzimuth += 360.0;
+    }
+    
+    // Apply stronger stabilization at vertical extremes
+    if (qAbs(newAltitude) > 85.0) {
+        // Near vertical, require larger change to update azimuth
+        if (qAbs(newAzimuth - m_azimuth) < 5.0) {
+            newAzimuth = m_azimuth;
+        }
+    }
+    
+    // Only update if changed significantly
     if (qAbs(newAltitude - m_altitude) > 0.5) {
         m_altitude = newAltitude;
         emit altitudeChanged(m_altitude);

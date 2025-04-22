@@ -43,6 +43,9 @@ template <> constexpr inline auto IOSSensorBridge::qt_create_metaobjectdata<qt_m
         "",
         "azimuth",
         "quaternionChanged",
+        "rotationMatrixChanged",
+        "RotationMatrix",
+        "matrix",
         "locationChanged",
         "GeoCoordinate",
         "location",
@@ -81,62 +84,66 @@ template <> constexpr inline auto IOSSensorBridge::qt_create_metaobjectdata<qt_m
         QtMocHelpers::SignalData<void(QQuaternion)>(4, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::QQuaternion, 2 },
         }}),
-        // Signal 'locationChanged'
-        QtMocHelpers::SignalData<void(GeoCoordinate)>(5, 2, QMC::AccessPublic, QMetaType::Void, {{
+        // Signal 'rotationMatrixChanged'
+        QtMocHelpers::SignalData<void(const RotationMatrix &)>(5, 2, QMC::AccessPublic, QMetaType::Void, {{
             { 0x80000000 | 6, 7 },
         }}),
+        // Signal 'locationChanged'
+        QtMocHelpers::SignalData<void(GeoCoordinate)>(8, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 9, 10 },
+        }}),
         // Signal 'locationErrorOccurred'
-        QtMocHelpers::SignalData<void(const QString &)>(8, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 9 },
+        QtMocHelpers::SignalData<void(const QString &)>(11, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 12 },
         }}),
         // Signal 'locationAuthorizationChanged'
-        QtMocHelpers::SignalData<void(bool)>(10, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Bool, 11 },
+        QtMocHelpers::SignalData<void(bool)>(13, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 14 },
         }}),
         // Signal 'locationMetadataChanged'
-        QtMocHelpers::SignalData<void()>(12, 2, QMC::AccessPublic, QMetaType::Void),
+        QtMocHelpers::SignalData<void()>(15, 2, QMC::AccessPublic, QMetaType::Void),
         // Method 'startSensors'
-        QtMocHelpers::MethodData<void()>(13, 2, QMC::AccessPublic, QMetaType::Void),
+        QtMocHelpers::MethodData<void()>(16, 2, QMC::AccessPublic, QMetaType::Void),
         // Method 'stopSensors'
-        QtMocHelpers::MethodData<void()>(14, 2, QMC::AccessPublic, QMetaType::Void),
+        QtMocHelpers::MethodData<void()>(17, 2, QMC::AccessPublic, QMetaType::Void),
         // Method 'setGPSAccuracy'
-        QtMocHelpers::MethodData<void(GPSAccuracy)>(15, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 16, 17 },
+        QtMocHelpers::MethodData<void(GPSAccuracy)>(18, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 19, 20 },
         }}),
         // Method 'setGPSUpdateInterval'
-        QtMocHelpers::MethodData<void(double)>(18, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Double, 19 },
+        QtMocHelpers::MethodData<void(double)>(21, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Double, 22 },
         }}),
         // Method 'isGPSAvailable'
-        QtMocHelpers::MethodData<bool() const>(20, 2, QMC::AccessPublic, QMetaType::Bool),
+        QtMocHelpers::MethodData<bool() const>(23, 2, QMC::AccessPublic, QMetaType::Bool),
         // Method 'isCompassAvailable'
-        QtMocHelpers::MethodData<bool() const>(21, 2, QMC::AccessPublic, QMetaType::Bool),
+        QtMocHelpers::MethodData<bool() const>(24, 2, QMC::AccessPublic, QMetaType::Bool),
     };
     QtMocHelpers::UintData qt_properties {
         // property 'azimuth'
         QtMocHelpers::PropertyData<double>(3, QMetaType::Double, QMC::DefaultPropertyFlags, 0),
         // property 'quaternion'
-        QtMocHelpers::PropertyData<QQuaternion>(22, QMetaType::QQuaternion, QMC::DefaultPropertyFlags, 1),
+        QtMocHelpers::PropertyData<QQuaternion>(25, QMetaType::QQuaternion, QMC::DefaultPropertyFlags, 1),
         // property 'location'
-        QtMocHelpers::PropertyData<GeoCoordinate>(7, 0x80000000 | 6, QMC::DefaultPropertyFlags | QMC::EnumOrFlag, 2),
+        QtMocHelpers::PropertyData<GeoCoordinate>(10, 0x80000000 | 9, QMC::DefaultPropertyFlags | QMC::EnumOrFlag, 3),
         // property 'locationAuthorized'
-        QtMocHelpers::PropertyData<bool>(23, QMetaType::Bool, QMC::DefaultPropertyFlags, 4),
+        QtMocHelpers::PropertyData<bool>(26, QMetaType::Bool, QMC::DefaultPropertyFlags, 5),
         // property 'lastGPSError'
-        QtMocHelpers::PropertyData<QString>(24, QMetaType::QString, QMC::DefaultPropertyFlags, 3),
+        QtMocHelpers::PropertyData<QString>(27, QMetaType::QString, QMC::DefaultPropertyFlags, 4),
         // property 'locationAccuracy'
-        QtMocHelpers::PropertyData<double>(25, QMetaType::Double, QMC::DefaultPropertyFlags, 5),
+        QtMocHelpers::PropertyData<double>(28, QMetaType::Double, QMC::DefaultPropertyFlags, 6),
         // property 'locationSpeed'
-        QtMocHelpers::PropertyData<double>(26, QMetaType::Double, QMC::DefaultPropertyFlags, 5),
+        QtMocHelpers::PropertyData<double>(29, QMetaType::Double, QMC::DefaultPropertyFlags, 6),
         // property 'locationCourse'
-        QtMocHelpers::PropertyData<double>(27, QMetaType::Double, QMC::DefaultPropertyFlags, 5),
+        QtMocHelpers::PropertyData<double>(30, QMetaType::Double, QMC::DefaultPropertyFlags, 6),
     };
     QtMocHelpers::UintData qt_enums {
         // enum 'GPSAccuracy'
-        QtMocHelpers::EnumData<GPSAccuracy>(16, 16, QMC::EnumFlags{}).add({
-            {   28, GPSAccuracy::Best },
-            {   29, GPSAccuracy::Navigation },
-            {   30, GPSAccuracy::Balanced },
-            {   31, GPSAccuracy::LowPower },
+        QtMocHelpers::EnumData<GPSAccuracy>(19, 19, QMC::EnumFlags{}).add({
+            {   31, GPSAccuracy::Best },
+            {   32, GPSAccuracy::Navigation },
+            {   33, GPSAccuracy::Balanced },
+            {   34, GPSAccuracy::LowPower },
         }),
     };
     return QtMocHelpers::metaObjectData<IOSSensorBridge, qt_meta_tag_ZN15IOSSensorBridgeE_t>(QMC::MetaObjectFlag{}, qt_stringData,
@@ -159,17 +166,18 @@ void IOSSensorBridge::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int 
         switch (_id) {
         case 0: _t->azimuthChanged((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
         case 1: _t->quaternionChanged((*reinterpret_cast< std::add_pointer_t<QQuaternion>>(_a[1]))); break;
-        case 2: _t->locationChanged((*reinterpret_cast< std::add_pointer_t<GeoCoordinate>>(_a[1]))); break;
-        case 3: _t->locationErrorOccurred((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
-        case 4: _t->locationAuthorizationChanged((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
-        case 5: _t->locationMetadataChanged(); break;
-        case 6: _t->startSensors(); break;
-        case 7: _t->stopSensors(); break;
-        case 8: _t->setGPSAccuracy((*reinterpret_cast< std::add_pointer_t<GPSAccuracy>>(_a[1]))); break;
-        case 9: _t->setGPSUpdateInterval((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
-        case 10: { bool _r = _t->isGPSAvailable();
+        case 2: _t->rotationMatrixChanged((*reinterpret_cast< std::add_pointer_t<RotationMatrix>>(_a[1]))); break;
+        case 3: _t->locationChanged((*reinterpret_cast< std::add_pointer_t<GeoCoordinate>>(_a[1]))); break;
+        case 4: _t->locationErrorOccurred((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
+        case 5: _t->locationAuthorizationChanged((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
+        case 6: _t->locationMetadataChanged(); break;
+        case 7: _t->startSensors(); break;
+        case 8: _t->stopSensors(); break;
+        case 9: _t->setGPSAccuracy((*reinterpret_cast< std::add_pointer_t<GPSAccuracy>>(_a[1]))); break;
+        case 10: _t->setGPSUpdateInterval((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
+        case 11: { bool _r = _t->isGPSAvailable();
             if (_a[0]) *reinterpret_cast< bool*>(_a[0]) = std::move(_r); }  break;
-        case 11: { bool _r = _t->isCompassAvailable();
+        case 12: { bool _r = _t->isCompassAvailable();
             if (_a[0]) *reinterpret_cast< bool*>(_a[0]) = std::move(_r); }  break;
         default: ;
         }
@@ -179,13 +187,15 @@ void IOSSensorBridge::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int 
             return;
         if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(QQuaternion )>(_a, &IOSSensorBridge::quaternionChanged, 1))
             return;
-        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(GeoCoordinate )>(_a, &IOSSensorBridge::locationChanged, 2))
+        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(const RotationMatrix & )>(_a, &IOSSensorBridge::rotationMatrixChanged, 2))
             return;
-        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(const QString & )>(_a, &IOSSensorBridge::locationErrorOccurred, 3))
+        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(GeoCoordinate )>(_a, &IOSSensorBridge::locationChanged, 3))
             return;
-        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(bool )>(_a, &IOSSensorBridge::locationAuthorizationChanged, 4))
+        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(const QString & )>(_a, &IOSSensorBridge::locationErrorOccurred, 4))
             return;
-        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)()>(_a, &IOSSensorBridge::locationMetadataChanged, 5))
+        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)(bool )>(_a, &IOSSensorBridge::locationAuthorizationChanged, 5))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (IOSSensorBridge::*)()>(_a, &IOSSensorBridge::locationMetadataChanged, 6))
             return;
     }
     if (_c == QMetaObject::ReadProperty) {
@@ -223,14 +233,14 @@ int IOSSensorBridge::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 12)
+        if (_id < 13)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 12;
+        _id -= 13;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 12)
+        if (_id < 13)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 12;
+        _id -= 13;
     }
     if (_c == QMetaObject::ReadProperty || _c == QMetaObject::WriteProperty
             || _c == QMetaObject::ResetProperty || _c == QMetaObject::BindableProperty
@@ -254,26 +264,32 @@ void IOSSensorBridge::quaternionChanged(QQuaternion _t1)
 }
 
 // SIGNAL 2
-void IOSSensorBridge::locationChanged(GeoCoordinate _t1)
+void IOSSensorBridge::rotationMatrixChanged(const RotationMatrix & _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 2, nullptr, _t1);
 }
 
 // SIGNAL 3
-void IOSSensorBridge::locationErrorOccurred(const QString & _t1)
+void IOSSensorBridge::locationChanged(GeoCoordinate _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1);
 }
 
 // SIGNAL 4
-void IOSSensorBridge::locationAuthorizationChanged(bool _t1)
+void IOSSensorBridge::locationErrorOccurred(const QString & _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 4, nullptr, _t1);
 }
 
 // SIGNAL 5
+void IOSSensorBridge::locationAuthorizationChanged(bool _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 5, nullptr, _t1);
+}
+
+// SIGNAL 6
 void IOSSensorBridge::locationMetadataChanged()
 {
-    QMetaObject::activate(this, &staticMetaObject, 5, nullptr);
+    QMetaObject::activate(this, &staticMetaObject, 6, nullptr);
 }
 QT_WARNING_POP

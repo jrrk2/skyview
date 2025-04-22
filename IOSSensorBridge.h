@@ -8,6 +8,12 @@
 
 #include "GeoCoordinate.h"
 
+struct RotationMatrix {
+    float m11, m12, m13;
+    float m21, m22, m23;
+    float m31, m32, m33;
+};
+
 // Forward declaration of implementation class
 class IOSSensorBridgeImpl;
 
@@ -65,10 +71,28 @@ public:
                       double speed = 0.0, double course = 0.0);
     void updateLocationError(const std::string& errorMessage);
     void updateLocationAuthorizationStatus(bool authorized);
-    
+    void updateRotationMatrix(float m11, float m12, float m13,
+                         float m21, float m22, float m23,
+                         float m31, float m32, float m33)
+    {
+    m_rotationMatrix.m11 = m11;
+    m_rotationMatrix.m12 = m12;
+    m_rotationMatrix.m13 = m13;
+    m_rotationMatrix.m21 = m21;
+    m_rotationMatrix.m22 = m22;
+    m_rotationMatrix.m23 = m23;
+    m_rotationMatrix.m31 = m31;
+    m_rotationMatrix.m32 = m32;
+    m_rotationMatrix.m33 = m33;  
+    emit rotationMatrixChanged(m_rotationMatrix);
+    }
+  
+    RotationMatrix rotationMatrix() const { return m_rotationMatrix; }
+  
 signals:
     void azimuthChanged(double azimuth);
     void quaternionChanged(QQuaternion);
+    void rotationMatrixChanged(const RotationMatrix& matrix);
     void locationChanged(GeoCoordinate location);
     void locationErrorOccurred(const QString& errorMessage);
     void locationAuthorizationChanged(bool authorized);
@@ -81,7 +105,8 @@ private:
     double m_azimuth;
     QQuaternion m_attitude;
     GeoCoordinate m_location;
-    
+    RotationMatrix m_rotationMatrix;
+  
     // GPS status
     bool m_gpsEnabled;
     bool m_locationAuthorized;

@@ -116,92 +116,322 @@ ApplicationWindow {
 
     // Replace the existing infoOverlay Rectangle with this streamlined version:
 
-    Rectangle {
-	id: infoOverlay
-	color: "#80000000"
-	width: parent.width
-	height: 160  // Height for the simplified display
-	anchors.bottom: parent.bottom
+// Modify the infoOverlay section in main.qml to add quaternion display
 
-	ColumnLayout {
-	    anchors.fill: parent
-	    anchors.margins: 10
-	    spacing: 5
+Rectangle {
+    id: infoOverlay
+    color: "#80000000"
+    width: parent.width
+    height: 210  // Increased height to accommodate the quaternion info
+    anchors.bottom: parent.bottom
 
-	    // Horizontal coordinates
-	    GridLayout {
-		Layout.fillWidth: true
-		columns: 2
-		columnSpacing: 10
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 10
+        spacing: 5
 
-		Text {
-		    Layout.fillWidth: true
-		    text: "Az: " + skyViewController.azimuth.toFixed(1) + "°"
-		    color: "#FFFFFF"
-		    font.pixelSize: 16
-		}
+        // Horizontal coordinates
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: 10
 
-		Text {
-		    Layout.fillWidth: true
-		    text: "Alt: " + skyViewController.altitude.toFixed(1) + "°"
-		    color: "#FFFFFF"
-		    font.pixelSize: 16
-		}
-	    }
+            Text {
+                Layout.fillWidth: true
+                text: "Az: " + skyViewController.azimuth.toFixed(1) + "°"
+                color: "#FFFFFF"
+                font.pixelSize: 16
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "Alt: " + skyViewController.altitude.toFixed(1) + "°"
+                color: "#FFFFFF"
+                font.pixelSize: 16
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: "J2000 Coordinates:"
+            color: "#AAAAFF"
+            font.pixelSize: 14
+            font.bold: true
+        }
+
+        // J2000 equatorial coordinates
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: 10
+
+            Text {
+                Layout.fillWidth: true
+                text: "RA: " + skyViewController.formattedRA
+                color: "#FFFFFF"
+                font.pixelSize: 16
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "DEC: " + skyViewController.formattedDEC
+                color: "#FFFFFF"
+                font.pixelSize: 16
+            }
+        }
+        
+        // Quaternion data
+        Text {
+            Layout.fillWidth: true
+            text: "Device Quaternion:"
+            color: "#AAAAFF"
+            font.pixelSize: 14
+            font.bold: true
+        }
+        
+	GridLayout {
+	    Layout.fillWidth: true
+	    columns: 4
+	    columnSpacing: 5
 
 	    Text {
-		Layout.fillWidth: true
-		text: "J2000 Coordinates:"
-		color: "#AAAAFF"
-		font.pixelSize: 14
-		font.bold: true
-	    }
-
-	    // J2000 equatorial coordinates
-	    GridLayout {
-		Layout.fillWidth: true
-		columns: 2
-		columnSpacing: 10
-
-		Text {
-		    Layout.fillWidth: true
-		    text: "RA: " + skyViewController.formattedRA
-		    color: "#FFFFFF"
-		    font.pixelSize: 16
-		}
-
-		Text {
-		    Layout.fillWidth: true
-		    text: "DEC: " + skyViewController.formattedDEC
-		    color: "#FFFFFF"
-		    font.pixelSize: 16
-		}
-	    }
-
-	    Text {
-		Layout.fillWidth: true
-		text: "Location: " + 
-		    skyViewController.location.latitude.toFixed(4) + ", " + 
-		    skyViewController.location.longitude.toFixed(4)
+		text: "x: " + skyViewController.quaternionX.toFixed(3)
 		color: "#FFFFFF"
 		font.pixelSize: 14
 	    }
 
 	    Text {
-		Layout.fillWidth: true
-		text: skyViewController.locationStatus
-		color: skyViewController.isGPSEnabled ? "#90EE90" : "#FFA07A"  // Light green if GPS enabled, light salmon if not
+		text: "y: " + skyViewController.quaternionY.toFixed(3)
+		color: "#FFFFFF"
 		font.pixelSize: 14
 	    }
 
 	    Text {
-		Layout.fillWidth: true
-		text: "DSOs in view: " + skyViewController.visibleDSOs.length
+		text: "z: " + skyViewController.quaternionZ.toFixed(3)
+		color: "#FFFFFF"
+		font.pixelSize: 14
+	    }
+
+	    Text {
+		text: "w: " + skyViewController.quaternionW.toFixed(3)
 		color: "#FFFFFF"
 		font.pixelSize: 14
 	    }
 	}
-    }    
+
+        Text {
+            Layout.fillWidth: true
+            text: "Location: " + 
+                skyViewController.location.latitude.toFixed(4) + ", " + 
+                skyViewController.location.longitude.toFixed(4)
+            color: "#FFFFFF"
+            font.pixelSize: 14
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: skyViewController.locationStatus
+            color: skyViewController.isGPSEnabled ? "#90EE90" : "#FFA07A"  // Light green if GPS enabled, light salmon if not
+            font.pixelSize: 14
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: "DSOs in view: " + skyViewController.visibleDSOs.length
+            color: "#FFFFFF"
+            font.pixelSize: 14
+        }
+    }
+
+// Add after the infoOverlay component
+Rectangle {
+    id: matrixDebug
+    width: parent.width
+    height: matrixVisible ? 180 : 30
+    color: "#80000020"  // Slightly lighter background
+    anchors.top: infoOverlay.bottom
+    
+    property bool matrixVisible: false
+    
+    MouseArea {
+        anchors.fill: parent
+        onClicked: {
+            matrixDebug.matrixVisible = !matrixDebug.matrixVisible
+        }
+    }
+    
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 5
+        spacing: 2
+        
+        // Header with toggle button
+        RowLayout {
+            Layout.fillWidth: true
+            
+            Text {
+                text: "Rotation Matrix"
+                color: "#AAAAFF"
+                font.pixelSize: 14
+                font.bold: true
+            }
+            
+            Item { Layout.fillWidth: true }
+            
+            Text {
+                text: matrixDebug.matrixVisible ? "▲" : "▼"
+                color: "#FFFFFF"
+                font.pixelSize: 14
+            }
+        }
+        
+        // Matrix content - only visible when expanded
+        GridLayout {
+            visible: matrixDebug.matrixVisible
+            Layout.fillWidth: true
+            columns: 3
+            rowSpacing: 2
+            columnSpacing: 10
+            
+            // First row
+            Text {
+                text: skyViewController.m11.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            Text {
+                text: skyViewController.m12.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            Text {
+                text: skyViewController.m13.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            
+            // Second row
+            Text {
+                text: skyViewController.m21.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            Text {
+                text: skyViewController.m22.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            Text {
+                text: skyViewController.m23.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            
+            // Third row
+            Text {
+                text: skyViewController.m31.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            Text {
+                text: skyViewController.m32.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            Text {
+                text: skyViewController.m33.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.preferredWidth: 60
+                horizontalAlignment: Text.AlignRight
+            }
+            
+            // Direction vector header
+            Text {
+                Layout.columnSpan: 3
+                Layout.topMargin: 5
+                text: "View Direction (normalized):"
+                color: "#AAAAFF"
+                font.pixelSize: 12
+            }
+            
+            // X component
+            Text {
+                text: "X:"
+                color: "#AAAAFF"
+                font.pixelSize: 12
+                Layout.preferredWidth: 20
+            }
+/*            Text {
+                text: skyViewController.debugDirX.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.fillWidth: true
+            }
+            Item { Layout.fillWidth: true }
+            
+            // Y component
+            Text {
+                text: "Y:"
+                color: "#AAAAFF"
+                font.pixelSize: 12
+                Layout.preferredWidth: 20
+            }
+            Text {
+                text: skyViewController.debugDirY.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.fillWidth: true
+            }
+            Item { Layout.fillWidth: true }
+            
+            // Z component
+            Text {
+                text: "Z:"
+                color: "#AAAAFF"
+                font.pixelSize: 12
+                Layout.preferredWidth: 20
+            }
+            Text {
+                text: skyViewController.debugDirZ.toFixed(3)
+                color: "#FFFFFF"
+                font.pixelSize: 12
+                font.family: "Monospace"
+                Layout.fillWidth: true
+            }
+Item { Layout.fillWidth: true }
+*/
+        }
+    }
+}
+}
 
     // Settings drawer
     Drawer {

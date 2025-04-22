@@ -31,6 +31,20 @@ class SkyViewController : public QObject
     
     // Properties exposed to QML
     Q_PROPERTY(QQuaternion quaternion READ quaternion NOTIFY quaternionChanged)
+    Q_PROPERTY(double quaternionX READ quaternionX NOTIFY quaternionChanged)
+    Q_PROPERTY(double quaternionY READ quaternionY NOTIFY quaternionChanged)
+    Q_PROPERTY(double quaternionZ READ quaternionZ NOTIFY quaternionChanged)
+    Q_PROPERTY(double quaternionW READ quaternionW NOTIFY quaternionChanged)
+    // Add to the Q_PROPERTY section:
+    Q_PROPERTY(double m11 READ m11 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m12 READ m12 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m13 READ m13 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m21 READ m21 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m22 READ m22 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m23 READ m23 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m31 READ m31 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m32 READ m32 NOTIFY debugDataChanged)
+    Q_PROPERTY(double m33 READ m33 NOTIFY debugDataChanged)    
     Q_PROPERTY(double azimuth READ azimuth NOTIFY azimuthChanged)
     Q_PROPERTY(double altitude READ altitude NOTIFY altitudeChanged)
     Q_PROPERTY(QVariantList visibleDSOs READ visibleDSOs NOTIFY visibleDSOsChanged)
@@ -60,7 +74,20 @@ public:
     QString formattedRA() const;
     QString formattedDEC() const;
     QQuaternion quaternion() const { return m_rawQuaternion; }
-    
+    double quaternionX() const { return m_rawQuaternion.x(); }
+    double quaternionY() const { return m_rawQuaternion.y(); }
+    double quaternionZ() const { return m_rawQuaternion.z(); }
+    double quaternionW() const { return m_rawQuaternion.scalar(); }
+    // Add to the public section:
+    double m11() const { return m_rotationMatrix.m11; }
+    double m12() const { return m_rotationMatrix.m12; }
+    double m13() const { return m_rotationMatrix.m13; }
+    double m21() const { return m_rotationMatrix.m21; }
+    double m22() const { return m_rotationMatrix.m22; }
+    double m23() const { return m_rotationMatrix.m23; }
+    double m31() const { return m_rotationMatrix.m31; }
+    double m32() const { return m_rotationMatrix.m32; }
+    double m33() const { return m_rotationMatrix.m33; }
     // Setters
     void setLocation(const GeoCoordinate &location);
     
@@ -86,10 +113,12 @@ signals:
     void locationStatusChanged(const QString &status);
     void rightAscensionChanged(double ra);
     void declinationChanged(double dec);
+    void debugDataChanged();	       
     
 private slots:
     void onAzimuthChanged(double azimuth);
     void onAttitudeChanged(QQuaternion);
+    void onRotationMatrixChanged(const RotationMatrix& matrix);
     void onLocationChanged(GeoCoordinate location);
     void onLocationError(const QString &errorMessage);
     void onLocationAuthorizationChanged(bool authorized);
@@ -104,9 +133,11 @@ private:
     IOSSensorBridge *m_sensorBridge;
     
     // Current orientation
+    double m_debugRoll, m_debugPitch, m_debugYaw, m_debugDirX, m_debugDirY, m_debugDirZ;
     double m_azimuth;    // compass direction in degrees (0 = North, 90 = East)
     double m_altitude;   // tilt angle in degrees (-90 = down, 0 = horizontal, 90 = up)
     QQuaternion m_rawQuaternion;
+    RotationMatrix m_rotationMatrix;
   
     // Location and time
     GeoCoordinate *m_location = nullptr;
