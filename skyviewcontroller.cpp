@@ -234,19 +234,13 @@ void SkyViewController::applyKalmanFilter(double rawAzimuth, double rawAltitude,
 }
 
 void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
+    // Store the matrix
     m_rotationMatrix = matrix;
-    // Calculate time delta
-    double dt = m_lastUpdateTime.elapsed() / 1000.0; // Convert to seconds
-    if (dt < 0.001 || dt > 0.5) dt = 0.016; // Sanity check
-    m_lastUpdateTime.restart();
-        
-    // CoreMotion rotation matrix represents device orientation in a North-East-Down reference frame
     
-    // Extract view direction - using negative Z axis of device in world space (third row)
-    // We negate because we're looking through the back of the device
-    float x = -matrix.m31;  // Device Z axis X component in world
-    float y = -matrix.m32;  // Device Z axis Y component in world
-    float z = -matrix.m33;  // Device Z axis Z component in world
+    // Extract view direction vector
+    float x = -matrix.m31;
+    float y = -matrix.m32;
+    float z = -matrix.m33;
     
     // Normalize the vector
     float length = sqrt(x*x + y*y + z*z);
@@ -256,24 +250,76 @@ void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
         z /= length;
     }
     
-    // Debug output
-    // qDebug() << "Vector:" << x << y << z;
-    
-    // Calculate azimuth and altitude from direction vector
-    
-    // Azimuth is angle in x-y plane (from North, clockwise)
+    // Calculate raw azimuth and altitude
     double rawAzimuth = qRadiansToDegrees(qAtan2(y, x));
-    if (rawAzimuth < 0) 
-        rawAzimuth += 360.0;
+    if (rawAzimuth < 0) rawAzimuth += 360.0;
     
-    // Altitude is angle from horizon (positive when pointing up)
-    // We need to invert the z value to get the correct sign
-    double rawAltitude = qRadiansToDegrees(qAsin(z));  // Changed from -z to z
+    double rawAltitude = qRadiansToDegrees(qAsin(z));
     
-    // Apply Kalman filter
-    applyKalmanFilter(rawAzimuth, rawAltitude, dt);
+    // Store in circular buffer
+    m_azimuthBuffer[m_bufferIndex] = rawAzimuth;
+    m_altitudeBuffer[m_bufferIndex] = rawAltitude;
     
-    updateVisibleDSOs();
+    // Increment buffer index
+    m_bufferIndex = (m_bufferIndex + 1) % FILTER_SIZE;
+    if (m_bufferIndex == 0) {
+        m_bufferFilled = true; // We've filled the buffer once
+    }
+    
+    // Apply tophat FIR filter (equal weights for all samples)
+    if (m_bufferFilled) {
+        // Use all samples
+        double azimuthSum = 0.0;
+        double altitudeSum = 0.0;
+        
+        // Special handling for azimuth to deal with 0/360 boundary
+        // First, find a reference point to minimize wrap-around issues
+        double refAzimuth = m_azimuthBuffer[0];
+        
+        for (int i = 0; i < FILTER_SIZE; i++) {
+            // Handle azimuth wrapping
+            double azSample = m_azimuthBuffer[i];
+            double diff = azSample - refAzimuth;
+            
+            // Adjust for wraparound
+            if (diff > 180.0) diff -= 360.0;
+            if (diff < -180.0) diff += 360.0;
+            
+            // Use the adjusted value
+            azimuthSum += refAzimuth + diff;
+            
+            // Altitude is simpler
+            altitudeSum += m_altitudeBuffer[i];
+        }
+        
+        // Calculate averages
+        double newAzimuth = azimuthSum / FILTER_SIZE;
+        double newAltitude = altitudeSum / FILTER_SIZE;
+        
+        // Normalize azimuth to 0-360 range
+        while (newAzimuth < 0.0) newAzimuth += 360.0;
+        while (newAzimuth >= 360.0) newAzimuth -= 360.0;
+        
+        // Update values if changed significantly
+        if (qAbs(newAzimuth - m_azimuth) > 0.2 || qAbs(newAltitude - m_altitude) > 0.2) {
+            m_azimuth = newAzimuth;
+            m_altitude = newAltitude;
+            
+            emit azimuthChanged(m_azimuth);
+            emit altitudeChanged(m_altitude);
+            
+            updateVisibleDSOs();
+        }
+    } else {
+        // Buffer not filled yet, use raw values
+        m_azimuth = rawAzimuth;
+        m_altitude = rawAltitude;
+        
+        emit azimuthChanged(m_azimuth);
+        emit altitudeChanged(m_altitude);
+        
+        updateVisibleDSOs();
+    }
 }
 
 void SkyViewController::onLocationChanged(GeoCoordinate location)

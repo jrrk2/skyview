@@ -148,7 +148,15 @@ private:
     double m_altitudeVelocity = 0.0;
     double m_azimuthCovariance = 1.0;
     double m_altitudeCovariance = 1.0;
-    
+    // For spike detection
+    double m_lastRawAzimuth = 0.0;
+    double m_lastRawAltitude = 0.0;   
+    // Circular buffers for FIR filtering
+    static const int FILTER_SIZE = 10;
+    std::array<double, FILTER_SIZE> m_azimuthBuffer;
+    std::array<double, FILTER_SIZE> m_altitudeBuffer;
+    int m_bufferIndex = 0;
+    bool m_bufferFilled = false;
     // Update timestamps for velocity calculation
     QElapsedTimer m_lastUpdateTime;
   
