@@ -14,7 +14,7 @@ SkyViewController::SkyViewController(QObject *parent)
       m_manualLocationMode(false),
       m_locationAccuracy(0.0),
       m_locationStatus("GPS initializing"),
-      m_fieldOfView(30.0), // Default 30 degree field of view
+      m_fieldOfView(50.0), // Default 50 degree field of view
       m_rightAscension(0.0),
       m_declination(0.0)
 {
@@ -189,9 +189,57 @@ void SkyViewController::onAzimuthChanged(double azimuth)
     updateVisibleDSOs();
 }
 
+void SkyViewController::applyKalmanFilter(double rawAzimuth, double rawAltitude, double dt) {
+    // Kalman filter parameters
+    const double processNoise = 0.01;
+    const double measurementNoise = 0.1;
+    
+    // Predict step - Azimuth
+    double azDiff = rawAzimuth - m_azimuthPrev;
+    if (azDiff > 180.0) azDiff -= 360.0;
+    if (azDiff < -180.0) azDiff += 360.0;
+    
+    m_azimuthVelocity = azDiff / dt;
+    double azimuthPredicted = m_azimuth + m_azimuthVelocity * dt;
+    m_azimuthCovariance = m_azimuthCovariance + processNoise;
+    
+    // Update step - Azimuth
+    double kalmanGain = m_azimuthCovariance / (m_azimuthCovariance + measurementNoise);
+    m_azimuth = azimuthPredicted + kalmanGain * (rawAzimuth - azimuthPredicted);
+    m_azimuthCovariance = (1 - kalmanGain) * m_azimuthCovariance;
+    
+    // Normalize azimuth
+    while (m_azimuth < 0.0) m_azimuth += 360.0;
+    while (m_azimuth >= 360.0) m_azimuth -= 360.0;
+    
+    // Predict step - Altitude
+    m_altitudeVelocity = (rawAltitude - m_altitudePrev) / dt;
+    double altitudePredicted = m_altitude + m_altitudeVelocity * dt;
+    m_altitudeCovariance = m_altitudeCovariance + processNoise;
+    
+    // Update step - Altitude
+    kalmanGain = m_altitudeCovariance / (m_altitudeCovariance + measurementNoise);
+    m_altitude = altitudePredicted + kalmanGain * (rawAltitude - altitudePredicted);
+    m_altitudeCovariance = (1 - kalmanGain) * m_altitudeCovariance;
+    
+    // Bound altitude to valid range
+    m_altitude = qBound(-90.0, m_altitude, 90.0);
+    
+    // Store previous values
+    m_azimuthPrev = rawAzimuth;
+    m_altitudePrev = rawAltitude;
+    
+    emit azimuthChanged(m_azimuth);
+    emit altitudeChanged(m_altitude);
+}
+
 void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
     m_rotationMatrix = matrix;
-    
+    // Calculate time delta
+    double dt = m_lastUpdateTime.elapsed() / 1000.0; // Convert to seconds
+    if (dt < 0.001 || dt > 0.5) dt = 0.016; // Sanity check
+    m_lastUpdateTime.restart();
+        
     // CoreMotion rotation matrix represents device orientation in a North-East-Down reference frame
     
     // Extract view direction - using negative Z axis of device in world space (third row)
@@ -214,24 +262,16 @@ void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
     // Calculate azimuth and altitude from direction vector
     
     // Azimuth is angle in x-y plane (from North, clockwise)
-    double newAzimuth = qRadiansToDegrees(qAtan2(y, x));
-    if (newAzimuth < 0) 
-        newAzimuth += 360.0;
+    double rawAzimuth = qRadiansToDegrees(qAtan2(y, x));
+    if (rawAzimuth < 0) 
+        rawAzimuth += 360.0;
     
     // Altitude is angle from horizon (positive when pointing up)
     // We need to invert the z value to get the correct sign
-    double newAltitude = qRadiansToDegrees(qAsin(z));  // Changed from -z to z
+    double rawAltitude = qRadiansToDegrees(qAsin(z));  // Changed from -z to z
     
-    // Only update if changed significantly
-    if (qAbs(newAltitude - m_altitude) > 0.5) {
-        m_altitude = newAltitude;
-        emit altitudeChanged(m_altitude);
-    }
-    
-    if (qAbs(newAzimuth - m_azimuth) > 0.5) {
-        m_azimuth = newAzimuth;
-        emit azimuthChanged(m_azimuth);
-    }
+    // Apply Kalman filter
+    applyKalmanFilter(rawAzimuth, rawAltitude, dt);
     
     updateVisibleDSOs();
 }

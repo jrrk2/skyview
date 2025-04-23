@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QMatrix3x3>
 #include <QVector3D>
+#include <QElapsedTimer>
 #include "GeoCoordinate.h"
 #include <QHash>
 #include <QString>
@@ -76,6 +77,7 @@ public:
     double m31() const { return m_rotationMatrix.m31; }
     double m32() const { return m_rotationMatrix.m32; }
     double m33() const { return m_rotationMatrix.m33; }
+    void applyKalmanFilter(double rawAzimuth, double rawAltitude, double dt);
     // Setters
     void setLocation(const GeoCoordinate &location);
     
@@ -138,6 +140,18 @@ private:
     double m_fieldOfView;  // Field of view in degrees
     double m_rightAscension;  // in hours
     double m_declination;     // in degrees
+
+    // Kalman filter state
+    double m_azimuthPrev = 0.0;
+    double m_altitudePrev = 0.0;
+    double m_azimuthVelocity = 0.0;
+    double m_altitudeVelocity = 0.0;
+    double m_azimuthCovariance = 1.0;
+    double m_altitudeCovariance = 1.0;
+    
+    // Update timestamps for velocity calculation
+    QElapsedTimer m_lastUpdateTime;
+  
 };
 
 #endif // SKYVIEWCONTROLLER_H

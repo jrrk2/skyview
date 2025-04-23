@@ -77,8 +77,8 @@ public:
         [m_locationManager setDelegate:m_delegate];
         
         // Configure location manager
-        [m_locationManager setDesiredAccuracy:kCLLocationAccuracyBest];
-        [m_locationManager setDistanceFilter:1.0]; // Update when moved 1 meter
+        [m_locationManager setDesiredAccuracy:kCLLocationAccuracyHundredMeters];
+        [m_locationManager setDistanceFilter:10.0]; // Update when moved 1 meter
         [m_locationManager setHeadingFilter:1.0];  // 1 degree change
         
         // Set update intervals

@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
 	<file>images/m1.jpg</file>
+	<file>images/m100.jpg</file>
 	<file>images/m101.jpg</file>
 	<file>images/m102.jpg</file>
 	<file>images/m103.jpg</file>
