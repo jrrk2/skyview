@@ -52,82 +52,39 @@ double AstronomyCalculator::calculateLST()
 
 void AstronomyCalculator::equatorialToHorizontal(double ra, double dec, double* azimuth, double* altitude)
 {
-    // Calculate Local Sidereal Time
-    double lst = calculateLST();
+    // Calculate Local Sidereal Time in radians
+    double lst = calculateLST() * M_PI / 180.0; // Convert to radians
     
-    // Convert LST from degrees to hours
-    lst /= 15.0;
+    // Convert RA to radians
+    double raRad = degreesToRadians(ra * 15.0); // RA in hours to radians
     
-    // Calculate Hour Angle in hours
-    double ha = lst - ra;
-    // Normalize to 0-24 range
-    ha = normalizeAngle(ha, 0.0, 24.0);
-    // Convert hour angle to degrees
-    ha *= 15.0;
-    
-    // Convert all angles to radians
-    double haRad = degreesToRadians(ha);
+    // Convert Dec to radians
     double decRad = degreesToRadians(dec);
+    
+    // Convert latitude to radians
     double latRad = degreesToRadians(m_location.latitude());
     
-    // Calculate altitude
-    double sinAlt = qSin(decRad) * qSin(latRad) + qCos(decRad) * qCos(latRad) * qCos(haRad);
-    double altRad = qAsin(sinAlt);
+    // Calculate Hour Angle in radians
+    double H = lst - raRad;
     
-    // Calculate azimuth
-    double cosAz = (qSin(decRad) - qSin(altRad) * qSin(latRad)) / (qCos(altRad) * qCos(latRad));
-    // Clamp cosAz to valid range for acos
-    cosAz = qBound(-1.0, cosAz, 1.0);
+    // Normalize to -π to +π range
+    if (H < 0) H += 2 * M_PI;
+    if (H > M_PI) H = H - 2 * M_PI;
     
-    double azRad = qAcos(cosAz);
+    // Calculate azimuth using the celestialprogramming.com formula
+    double az = qAtan2(qSin(H), qCos(H)*qSin(latRad) - qTan(decRad)*qCos(latRad));
     
-    // Adjust azimuth based on hour angle
-    if (qSin(haRad) >= 0) {
-        azRad = 2.0 * M_PI - azRad;
-    }
+    // Calculate altitude using same formula as before
+    double alt = qAsin(qSin(latRad)*qSin(decRad) + qCos(latRad)*qCos(decRad)*qCos(H));
     
-    // Convert back to degrees
-    *altitude = radiansToDegrees(altRad);
-    *azimuth = radiansToDegrees(azRad);
+    // Adjust azimuth as in the JavaScript code
+    az -= M_PI;
+    if (az < 0) az += 2 * M_PI;
+    
+    // Convert to degrees
+    *azimuth = radiansToDegrees(az);
+    *altitude = radiansToDegrees(alt);
 }
-
-/*
-void AstronomyCalculator::horizontalToEquatorial(double azimuth, double altitude, double* ra, double* dec)
-{
-    // Convert to radians
-    double azRad = degreesToRadians(azimuth);
-    double altRad = degreesToRadians(altitude);
-    double latRad = degreesToRadians(m_location.latitude());
-    
-    // Calculate declination
-    double sinDec = qSin(altRad) * qSin(latRad) + qCos(altRad) * qCos(latRad) * qCos(azRad);
-    double decRad = qAsin(sinDec);
-    
-    // Calculate hour angle
-    double cosHA = (qSin(altRad) - qSin(decRad) * qSin(latRad)) / (qCos(decRad) * qCos(latRad));
-    // Clamp to valid range for acos
-    cosHA = qBound(-1.0, cosHA, 1.0);
-    double haRad = qAcos(cosHA);
-    
-    // Adjust hour angle based on azimuth
-    if (qSin(azRad) >= 0) {
-        haRad = 2.0 * M_PI - haRad;
-    }
-    
-    // Convert hour angle to hours
-    double ha = radiansToDegrees(haRad) / 15.0;
-    
-    // Calculate Local Sidereal Time
-    double lst = calculateLST() / 15.0; // Convert to hours
-    
-    // Calculate right ascension
-    double rightAscension = normalizeAngle(lst - ha, 0.0, 24.0);
-    
-    // Set results
-    *ra = rightAscension;
-    *dec = radiansToDegrees(decRad);
-}
-*/
 
 double AstronomyCalculator::angularSeparation(double az1, double alt1, double az2, double alt2)
 {

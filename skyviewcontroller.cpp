@@ -14,7 +14,7 @@ SkyViewController::SkyViewController(QObject *parent)
       m_manualLocationMode(false),
       m_locationAccuracy(0.0),
       m_locationStatus("GPS initializing"),
-      m_fieldOfView(50.0), // Default 50 degree field of view
+      m_fieldOfView(30.0), // Default 30 degree field of view
       m_rightAscension(0.0),
       m_declination(0.0)
 {
