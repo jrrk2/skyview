@@ -20,10 +20,7 @@ $CXX $CXXFLAGS $QT_INCLUDES -o $OUTPUT $SOURCE $QT_LIBS
 
 if [ $? -eq 0 ]; then
     echo "Build successful. Usage:"
-    echo "./$OUTPUT messier_data.ml MessierCatalog.h images_directory output_images_directory"
-    echo ""
-    echo "Example:"
-    echo "./$OUTPUT ./data/messier_data.ml ./include/MessierCatalog.h ./images ./images/cropped"
+    ./$OUTPUT ./messier_jpeg ./images
 else
     echo "Build failed."
 fi

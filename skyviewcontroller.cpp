@@ -189,23 +189,16 @@ void SkyViewController::onAzimuthChanged(double azimuth)
     updateVisibleDSOs();
 }
 
-void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix)
-{
+void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
     m_rotationMatrix = matrix;
     
-    // The rotation matrix from Core Motion represents how to transform
-    // from the reference frame (N-E-Down) to the device frame
+    // CoreMotion rotation matrix represents device orientation in a North-East-Down reference frame
     
-    // To get the device's viewing direction in the reference frame,
-    // we need to apply the inverse of this transformation
-    
-    // For viewing direction, use device's Z-axis (perpendicular to screen)
-    // In device coordinates, this is (0,0,-1) (out of back of device)
-    
-    // Apply inverse transformation (transpose of rotation matrix)
-    float x = -matrix.m13;  // Third column, first row (negative for inverse)
-    float y = -matrix.m23;  // Third column, second row 
-    float z = -matrix.m33;  // Third column, third row
+    // Extract view direction - using negative Z axis of device in world space (third row)
+    // We negate because we're looking through the back of the device
+    float x = -matrix.m31;  // Device Z axis X component in world
+    float y = -matrix.m32;  // Device Z axis Y component in world
+    float z = -matrix.m33;  // Device Z axis Z component in world
     
     // Normalize the vector
     float length = sqrt(x*x + y*y + z*z);
@@ -215,29 +208,19 @@ void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix)
         z /= length;
     }
     
-    // Store for debugging
-    m_debugDirX = x;
-    m_debugDirY = y;
-    m_debugDirZ = z;
-    emit debugDataChanged();
+    // Debug output
+    // qDebug() << "Vector:" << x << y << z;
     
-    // Calculate altitude from y component (altitude = asin(y))
-    double sinAltitude = y;
-    double newAltitude = -90.0 - qRadiansToDegrees(qAsin(sinAltitude));
+    // Calculate azimuth and altitude from direction vector
     
-    // Calculate azimuth from x and z components
-    double horizontalLength = sqrt(x*x + z*z);
+    // Azimuth is angle in x-y plane (from North, clockwise)
+    double newAzimuth = qRadiansToDegrees(qAtan2(y, x));
+    if (newAzimuth < 0) 
+        newAzimuth += 360.0;
     
-    double newAzimuth;
-    if (horizontalLength < 0.01) {
-        // Near vertical, use previous azimuth
-        newAzimuth = m_azimuth;
-    } else {
-        // Azimuth: angle from north (when x=0, z<0) clockwise
-        newAzimuth = qRadiansToDegrees(qAtan2(x, -z));
-        if (newAzimuth < 0.0)
-            newAzimuth += 360.0;
-    }
+    // Altitude is angle from horizon (positive when pointing up)
+    // We need to invert the z value to get the correct sign
+    double newAltitude = qRadiansToDegrees(qAsin(z));  // Changed from -z to z
     
     // Only update if changed significantly
     if (qAbs(newAltitude - m_altitude) > 0.5) {
@@ -252,7 +235,6 @@ void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix)
     
     updateVisibleDSOs();
 }
-
 
 void SkyViewController::onLocationChanged(GeoCoordinate location)
 {

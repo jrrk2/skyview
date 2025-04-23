@@ -204,10 +204,10 @@ const std::vector<MessierObject> MessierCatalog = {
         "images/m31.jpg", // image URL
         964, // discovery year
         "Autumn", // best viewed
-        400, // cropped width (px)
-        268, // cropped height (px)
+        1024, // cropped width (px)
+        1024, // cropped height (px)
         10.5888, // scale factor
-        150  // display size (px)
+        200  // display size (px)
     },
     {
         32, // id
