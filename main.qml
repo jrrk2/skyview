@@ -179,45 +179,6 @@ Rectangle {
                 font.pixelSize: 16
             }
         }
-        
-        // Quaternion data
-        Text {
-            Layout.fillWidth: true
-            text: "Device Quaternion:"
-            color: "#AAAAFF"
-            font.pixelSize: 14
-            font.bold: true
-        }
-        
-	GridLayout {
-	    Layout.fillWidth: true
-	    columns: 4
-	    columnSpacing: 5
-
-	    Text {
-		text: "x: " + skyViewController.quaternionX.toFixed(3)
-		color: "#FFFFFF"
-		font.pixelSize: 14
-	    }
-
-	    Text {
-		text: "y: " + skyViewController.quaternionY.toFixed(3)
-		color: "#FFFFFF"
-		font.pixelSize: 14
-	    }
-
-	    Text {
-		text: "z: " + skyViewController.quaternionZ.toFixed(3)
-		color: "#FFFFFF"
-		font.pixelSize: 14
-	    }
-
-	    Text {
-		text: "w: " + skyViewController.quaternionW.toFixed(3)
-		color: "#FFFFFF"
-		font.pixelSize: 14
-	    }
-	}
 
         Text {
             Layout.fillWidth: true

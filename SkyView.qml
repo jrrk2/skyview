@@ -155,30 +155,7 @@ Item {
                         }
                     }
                 }
-                
-                // Show altitude value for debugging
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.top
-                    anchors.bottomMargin: 2
-                    text: modelData.altitude ? modelData.altitude.toFixed(1) + "°" : ""
-                    color: "#AAAAFF"
-                    font.pixelSize: 9
-                    visible: false  // Set to true for debugging
-                }
-
-		Text {
-                    text: modelData.rawPitch ? modelData.rawPitch.toFixed(1) + "°" : "pitch?"
-		    color: "#FFFFFF"
-		    font.pixelSize: 9
-		}
-
-		Text {
-                    text: modelData.rawRoll ? modelData.rawRoll.toFixed(1) + "°" : "roll?"
-		    color: "#FFFFFF"
-		    font.pixelSize: 16
-		}
-                
+                                
                 // DSO name label - placed below the image
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter

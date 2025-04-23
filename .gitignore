@@ -1,0 +1,10 @@
+*~
+.DS_Store
+.qmake.stash
+.xcode/
+DSO_SkyView.xcodeproj/
+Debug-iphoneos/
+Release-iphonesimulator/
+Makefile
+messier_jpeg/
+messier_processor

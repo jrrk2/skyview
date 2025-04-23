@@ -16,7 +16,7 @@ SkyViewController::SkyViewController(QObject *parent)
       m_locationStatus("GPS initializing"),
       m_fieldOfView(50.0), // Default 50 degree field of view
       m_rightAscension(0.0),
-      m_declination(0.0) // Default 50 degree field of view
+      m_declination(0.0)
 {
     // Connect sensor signals
     connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
@@ -366,9 +366,6 @@ void SkyViewController::updateVisibleDSOs()
         emit declinationChanged(m_declination);
     }
     
-    // Use a wide field of view for testing
-    const double testFieldOfView = 120.0; // 120 degrees - large portion of the sky
-    
     // Debug current viewing direction
     // qDebug() << "Current view direction: Azimuth" << m_azimuth << "Altitude" << m_altitude;
     
@@ -393,7 +390,7 @@ void SkyViewController::updateVisibleDSOs()
         // Transform the sky coordinates to screen coordinates
         
         // 1. First, determine if object is in the field of view
-        if (angularSeparation > testFieldOfView / 2.0) {
+        if (angularSeparation > m_fieldOfView / 2.0) {
             continue; // Skip objects outside the field of view
         }
         
@@ -414,7 +411,7 @@ void SkyViewController::updateVisibleDSOs()
         
         // Use the distance from center of view to adjust size slightly
         // Objects at the edge of view are slightly smaller 
-        double distanceFactor = 1.0 - (angularSeparation / testFieldOfView);
+        double distanceFactor = 1.0 - (angularSeparation / m_fieldOfView);
         displaySize = static_cast<int>(displaySize * (0.8 + 0.2 * distanceFactor));
         
         dsoMap["displaySize"] = displaySize;
@@ -426,7 +423,7 @@ void SkyViewController::updateVisibleDSOs()
         if (azDiff < -180) azDiff += 360;
         
         // Convert angular difference to normalized screen coordinates
-        double normAzDiff = -azDiff / (testFieldOfView / 2.0);
+        double normAzDiff = -azDiff / (m_fieldOfView / 2.0);
         
         // For altitude, we need to map objects differently:
         // - When we look at horizon (alt = 0), horizon should be at bottom of screen
@@ -440,15 +437,15 @@ void SkyViewController::updateVisibleDSOs()
         // regardless of where the user is looking
         if (m_altitude <= 0) {
             // When looking at or below horizon
-            normAltDiff = -dsoAltitude / (testFieldOfView / 2.0);
+            normAltDiff = -dsoAltitude / (m_fieldOfView / 2.0);
         } else {
             // When looking above horizon
-            normAltDiff = -(dsoAltitude - m_altitude) / (testFieldOfView / 2.0);
+            normAltDiff = -(dsoAltitude - m_altitude) / (m_fieldOfView / 2.0);
         }
         
         // Only include objects above the horizon or with special visibility flag
-        if (dsoAltitude < 0) {
-            // Skip objects below horizon
+        if (dsoAltitude < -20) {
+            // Skip objects well below horizon
             continue;
         }
         
