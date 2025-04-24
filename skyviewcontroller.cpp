@@ -1,5 +1,6 @@
 #include "MessierCatalog.h" // Include the generated header
 #include "skyviewcontroller.h"
+#include "SolarSystemCalculator.h"
 #include <QtMath>
 #include <QVariantMap>
 #include <QMatrix4x4>
@@ -9,6 +10,7 @@
 SkyViewController::SkyViewController(QObject *parent)
     : QObject(parent),
       m_sensorBridge(new IOSSensorBridge(this)),
+      m_solarSystemCalculator(new SolarSystemCalculator(this)),
       m_azimuth(0.0),
       m_altitude(0.0),
       m_manualLocationMode(false),
@@ -28,6 +30,11 @@ SkyViewController::SkyViewController(QObject *parent)
     
     // Load some default DSOs
     loadDefaultDSOs();
+    // Start the timer for velocity calculations
+    // Initialize solar system objects
+    m_solarSystemCalculator->initialize();
+    m_solarSystemCalculator->setFieldOfView(m_fieldOfView);
+    
     // Start the timer for velocity calculations
     m_lastMatrixUpdateTime.start();
 }

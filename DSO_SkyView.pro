@@ -17,12 +17,14 @@ SOURCES += \
     main.cpp \
     skyviewcontroller.cpp \
     AstronomyCalculator.cpp \
+    SolarSystemCalculator.cpp \
     GeoCoordinate.cpp
 
 HEADERS += \
     skyviewcontroller.h \
     IOSSensorBridge.h \
     AstronomyCalculator.h \
+    SolarSystemCalculator.h \
     GeoCoordinate.h
 
 # Add Objective-C++ file for iOS platform

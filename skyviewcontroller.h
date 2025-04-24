@@ -13,6 +13,9 @@
 #include "IOSSensorBridge.h"
 #include "AstronomyCalculator.h"
 
+// Forward declarations
+class SolarSystemCalculator;
+
 struct DSOObject {
     QString name;
     double rightAscension;  // in hours
@@ -54,6 +57,7 @@ class SkyViewController : public QObject
 public:
     explicit SkyViewController(QObject *parent = nullptr);
     ~SkyViewController();
+    AstronomyCalculator m_astronomyCalculator;
     
     // Getters
     double azimuth() const;
@@ -117,11 +121,11 @@ private slots:
     void updateVisibleDSOs();
     
 private:
-    // Use AstronomyCalculator for celestial calculations
-    AstronomyCalculator m_astronomyCalculator;
-    
     // iOS Sensor Bridge
     IOSSensorBridge *m_sensorBridge;
+
+    // Use AstronomyCalculator for celestial calculations
+    SolarSystemCalculator *m_solarSystemCalculator;
     
     // Current orientation
     double m_debugRoll, m_debugPitch, m_debugYaw, m_debugDirX, m_debugDirY, m_debugDirZ;
