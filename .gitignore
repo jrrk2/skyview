@@ -8,3 +8,4 @@ Release-iphonesimulator/
 Makefile
 messier_jpeg/
 messier_processor
+qrc_images.cpp
