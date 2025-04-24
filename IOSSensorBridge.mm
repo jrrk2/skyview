@@ -63,6 +63,9 @@
 
 @end
 
+// In IOSSensorBridge.mm
+// Make minimal changes to the Objective-C part
+
 // C++ implementation using native iOS APIs
 class IOSSensorBridgeImpl {
 public:
@@ -76,13 +79,13 @@ public:
         [m_delegate setBridge:bridge];
         [m_locationManager setDelegate:m_delegate];
         
-        // Configure location manager
+        // Configure location manager (unchanged)
         [m_locationManager setDesiredAccuracy:kCLLocationAccuracyHundredMeters];
-        [m_locationManager setDistanceFilter:10.0]; // Update when moved 1 meter
+        [m_locationManager setDistanceFilter:10.0]; // Update when moved 10 meters
         [m_locationManager setHeadingFilter:1.0];  // 1 degree change
         
-        // Set update intervals
-        [m_motionManager setDeviceMotionUpdateInterval:0.1]; // 10 Hz
+        // Set update intervals - increase frequency to 50Hz
+        [m_motionManager setDeviceMotionUpdateInterval:0.02]; // 50 Hz
     }
     
     ~IOSSensorBridgeImpl() {
@@ -95,18 +98,23 @@ public:
     }
     
     void startSensors() {
-        // Start device motion updates (accelerometer, gyro, magnetometer fusion)
+        // Start device motion updates with a better reference frame
         if ([m_motionManager isDeviceMotionAvailable]) {
-            [m_motionManager startDeviceMotionUpdatesToQueue:[NSOperationQueue mainQueue]
-                                              withHandler:^(CMDeviceMotion * _Nullable motion, NSError * _Nullable error) {
+            [m_motionManager startDeviceMotionUpdatesUsingReferenceFrame:CMAttitudeReferenceFrameXMagneticNorthZVertical
+                                                              toQueue:[NSOperationQueue mainQueue]
+                                                         withHandler:^(CMDeviceMotion * _Nullable motion, NSError * _Nullable error) {
                 if (motion && m_bridge) {
                     // Get the device orientation in space
                     CMAttitude* attitude = motion.attitude;
-		    CMRotationMatrix matrix = attitude.rotationMatrix;
-                    // Send the attitude data to our C++ bridge
-		    m_bridge->updateRotationMatrix(matrix.m11, matrix.m12, matrix.m13,
-                             matrix.m21, matrix.m22, matrix.m23,
-                             matrix.m31, matrix.m32, matrix.m33);
+                    CMRotationMatrix matrix = attitude.rotationMatrix;
+                    
+                    // Send the raw rotation matrix data to our C++ bridge
+                    // Let the C++ code handle the filtering
+                    m_bridge->updateRotationMatrix(
+                        matrix.m11, matrix.m12, matrix.m13,
+                        matrix.m21, matrix.m22, matrix.m23,
+                        matrix.m31, matrix.m32, matrix.m33
+                    );
                 }
             }];
         }
@@ -123,6 +131,7 @@ public:
         }
     }
     
+    // Other methods remain unchanged
     void stopSensors() {
         [m_motionManager stopDeviceMotionUpdates];
         [m_locationManager stopUpdatingLocation];
@@ -130,6 +139,7 @@ public:
     }
     
     void setGPSAccuracy(IOSSensorBridge::GPSAccuracy accuracy) {
+        // Existing implementation
         switch (accuracy) {
             case IOSSensorBridge::GPSAccuracy::Best:
                 [m_locationManager setDesiredAccuracy:kCLLocationAccuracyBest];

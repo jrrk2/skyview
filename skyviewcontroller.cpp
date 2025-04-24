@@ -28,6 +28,8 @@ SkyViewController::SkyViewController(QObject *parent)
     
     // Load some default DSOs
     loadDefaultDSOs();
+    // Start the timer for velocity calculations
+    m_lastMatrixUpdateTime.start();
 }
 
 SkyViewController::~SkyViewController()
@@ -189,137 +191,143 @@ void SkyViewController::onAzimuthChanged(double azimuth)
     updateVisibleDSOs();
 }
 
-void SkyViewController::applyKalmanFilter(double rawAzimuth, double rawAltitude, double dt) {
-    // Kalman filter parameters
-    const double processNoise = 0.01;
-    const double measurementNoise = 0.1;
+// Matrix filtering implementation
+void SkyViewController::filterMatrixComponents(const RotationMatrix& newMatrix)
+{
+    // Calculate time delta since last update
+    double dt = m_lastMatrixUpdateTime.elapsed() / 1000.0; // Convert to seconds
+    m_lastMatrixUpdateTime.restart();
     
-    // Predict step - Azimuth
-    double azDiff = rawAzimuth - m_azimuthPrev;
-    if (azDiff > 180.0) azDiff -= 360.0;
-    if (azDiff < -180.0) azDiff += 360.0;
+    // Skip if time delta is too large (app was in background) or too small
+    if (dt > 0.5 || dt < 0.001) {
+        return;
+    }
     
-    m_azimuthVelocity = azDiff / dt;
-    double azimuthPredicted = m_azimuth + m_azimuthVelocity * dt;
-    m_azimuthCovariance = m_azimuthCovariance + processNoise;
+    // Store the matrix in our circular buffer
+    m_matrixBuffer[m_matrixBufferIndex] = newMatrix;
+    m_matrixBufferIndex = (m_matrixBufferIndex + 1) % MATRIX_BUFFER_SIZE;
     
-    // Update step - Azimuth
-    double kalmanGain = m_azimuthCovariance / (m_azimuthCovariance + measurementNoise);
-    m_azimuth = azimuthPredicted + kalmanGain * (rawAzimuth - azimuthPredicted);
-    m_azimuthCovariance = (1 - kalmanGain) * m_azimuthCovariance;
+    if (m_matrixBufferIndex == 0) {
+        m_matrixBufferFilled = true;
+    }
     
-    // Normalize azimuth
-    while (m_azimuth < 0.0) m_azimuth += 360.0;
-    while (m_azimuth >= 360.0) m_azimuth -= 360.0;
+    // If buffer isn't filled yet, just use the raw matrix
+    if (!m_matrixBufferFilled) {
+        processFilteredMatrix(newMatrix);
+        return;
+    }
     
-    // Predict step - Altitude
-    m_altitudeVelocity = (rawAltitude - m_altitudePrev) / dt;
-    double altitudePredicted = m_altitude + m_altitudeVelocity * dt;
-    m_altitudeCovariance = m_altitudeCovariance + processNoise;
+    // Apply histogram-based filtering to each matrix component
+    // This is different from a median filter - we find the most common value range
     
-    // Update step - Altitude
-    kalmanGain = m_altitudeCovariance / (m_altitudeCovariance + measurementNoise);
-    m_altitude = altitudePredicted + kalmanGain * (rawAltitude - altitudePredicted);
-    m_altitudeCovariance = (1 - kalmanGain) * m_altitudeCovariance;
+    // Define histogram bin sizes
+    const double BIN_SIZE = 0.01; // Adjust based on precision needed
     
-    // Bound altitude to valid range
-    m_altitude = qBound(-90.0, m_altitude, 90.0);
+    // Create histograms for the key components that determine direction
+    // (We focus on the bottom row which represents the view direction)
+    std::map<int, int> m31Hist, m32Hist, m33Hist;
     
-    // Store previous values
-    m_azimuthPrev = rawAzimuth;
-    m_altitudePrev = rawAltitude;
+    // Build histograms
+    for (int i = 0; i < MATRIX_BUFFER_SIZE; i++) {
+        int m31Bin = static_cast<int>(m_matrixBuffer[i].m31 / BIN_SIZE);
+        int m32Bin = static_cast<int>(m_matrixBuffer[i].m32 / BIN_SIZE);
+        int m33Bin = static_cast<int>(m_matrixBuffer[i].m33 / BIN_SIZE);
+        
+        m31Hist[m31Bin]++;
+        m32Hist[m32Bin]++;
+        m33Hist[m33Bin]++;
+    }
     
-    emit azimuthChanged(m_azimuth);
-    emit altitudeChanged(m_altitude);
+    // Find mode (most frequent bin) for each component
+    int m31Mode = findMostFrequentBin(m31Hist);
+    int m32Mode = findMostFrequentBin(m32Hist);
+    int m33Mode = findMostFrequentBin(m33Hist);
+    
+    // Convert back to actual values (use bin center)
+    double filteredM31 = (m31Mode + 0.5) * BIN_SIZE;
+    double filteredM32 = (m32Mode + 0.5) * BIN_SIZE;
+    double filteredM33 = (m33Mode + 0.5) * BIN_SIZE;
+    
+    // Create a filtered matrix
+    // For simplicity, we'll only filter the components that determine view direction
+    RotationMatrix filteredMatrix = newMatrix;
+    filteredMatrix.m31 = filteredM31;
+    filteredMatrix.m32 = filteredM32;
+    filteredMatrix.m33 = filteredM33;
+    
+    // Normalize the filtered row to maintain mathematical properties
+    double length = sqrt(filteredM31*filteredM31 + filteredM32*filteredM32 + filteredM33*filteredM33);
+    if (length > 0.0001) {
+        filteredMatrix.m31 /= length;
+        filteredMatrix.m32 /= length;
+        filteredMatrix.m33 /= length;
+    }
+    
+    // Process the filtered matrix
+    processFilteredMatrix(filteredMatrix);
 }
 
-void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
-    // Store the matrix
-    m_rotationMatrix = matrix;
+// Helper to find the most frequent bin in a histogram
+int SkyViewController::findMostFrequentBin(const std::map<int, int>& histogram)
+{
+    int maxCount = 0;
+    int modeBin = 0;
     
+    for (const auto& pair : histogram) {
+        if (pair.second > maxCount) {
+            maxCount = pair.second;
+            modeBin = pair.first;
+        }
+    }
+    
+    return modeBin;
+}
+
+// Helper to process a filtered matrix and update azimuth/altitude
+void SkyViewController::processFilteredMatrix(const RotationMatrix& matrix)
+{
     // Extract view direction vector
     float x = -matrix.m31;
     float y = -matrix.m32;
     float z = -matrix.m33;
     
-    // Normalize the vector
-    float length = sqrt(x*x + y*y + z*z);
-    if (length > 0.0001f) {
-        x /= length;
-        y /= length;
-        z /= length;
+    // Calculate azimuth and altitude
+    double newAzimuth = qRadiansToDegrees(qAtan2(y, x));
+    if (newAzimuth < 0) newAzimuth += 360.0;
+    
+    double newAltitude = qRadiansToDegrees(qAsin(z));
+    
+    // Apply hysteresis filter to reduce jitter
+    static const double THRESHOLD = 0.3; // degrees
+    
+    bool changed = false;
+    if (qAbs(newAzimuth - m_azimuth) > THRESHOLD) {
+        m_azimuth = newAzimuth;
+        changed = true;
     }
     
-    // Calculate raw azimuth and altitude
-    double rawAzimuth = qRadiansToDegrees(qAtan2(y, x));
-    if (rawAzimuth < 0) rawAzimuth += 360.0;
-    
-    double rawAltitude = qRadiansToDegrees(qAsin(z));
-    
-    // Store in circular buffer
-    m_azimuthBuffer[m_bufferIndex] = rawAzimuth;
-    m_altitudeBuffer[m_bufferIndex] = rawAltitude;
-    
-    // Increment buffer index
-    m_bufferIndex = (m_bufferIndex + 1) % FILTER_SIZE;
-    if (m_bufferIndex == 0) {
-        m_bufferFilled = true; // We've filled the buffer once
+    if (qAbs(newAltitude - m_altitude) > THRESHOLD) {
+        m_altitude = newAltitude;
+        changed = true;
     }
     
-    // Apply tophat FIR filter (equal weights for all samples)
-    if (m_bufferFilled) {
-        // Use all samples
-        double azimuthSum = 0.0;
-        double altitudeSum = 0.0;
-        
-        // Special handling for azimuth to deal with 0/360 boundary
-        // First, find a reference point to minimize wrap-around issues
-        double refAzimuth = m_azimuthBuffer[0];
-        
-        for (int i = 0; i < FILTER_SIZE; i++) {
-            // Handle azimuth wrapping
-            double azSample = m_azimuthBuffer[i];
-            double diff = azSample - refAzimuth;
-            
-            // Adjust for wraparound
-            if (diff > 180.0) diff -= 360.0;
-            if (diff < -180.0) diff += 360.0;
-            
-            // Use the adjusted value
-            azimuthSum += refAzimuth + diff;
-            
-            // Altitude is simpler
-            altitudeSum += m_altitudeBuffer[i];
-        }
-        
-        // Calculate averages
-        double newAzimuth = azimuthSum / FILTER_SIZE;
-        double newAltitude = altitudeSum / FILTER_SIZE;
-        
-        // Normalize azimuth to 0-360 range
-        while (newAzimuth < 0.0) newAzimuth += 360.0;
-        while (newAzimuth >= 360.0) newAzimuth -= 360.0;
-        
-        // Update values if changed significantly
-        if (qAbs(newAzimuth - m_azimuth) > 0.2 || qAbs(newAltitude - m_altitude) > 0.2) {
-            m_azimuth = newAzimuth;
-            m_altitude = newAltitude;
-            
-            emit azimuthChanged(m_azimuth);
-            emit altitudeChanged(m_altitude);
-            
-            updateVisibleDSOs();
-        }
-    } else {
-        // Buffer not filled yet, use raw values
-        m_azimuth = rawAzimuth;
-        m_altitude = rawAltitude;
-        
+    if (changed) {
         emit azimuthChanged(m_azimuth);
         emit altitudeChanged(m_altitude);
-        
         updateVisibleDSOs();
     }
+}
+
+// Update the onRotationMatrixChanged method to use our new filtering
+void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
+    // Store the raw matrix
+    m_rotationMatrix = matrix;
+    
+    // Apply our histogram-based filtering
+    filterMatrixComponents(matrix);
+    
+    // Emit signal for debugging purposes
+    emit debugDataChanged();
 }
 
 void SkyViewController::onLocationChanged(GeoCoordinate location)

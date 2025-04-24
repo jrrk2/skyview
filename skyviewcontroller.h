@@ -77,7 +77,10 @@ public:
     double m31() const { return m_rotationMatrix.m31; }
     double m32() const { return m_rotationMatrix.m32; }
     double m33() const { return m_rotationMatrix.m33; }
-    void applyKalmanFilter(double rawAzimuth, double rawAltitude, double dt);
+    // Helper method to filter rotation matrix
+    void filterRotationMatrix(const RotationMatrix& newMatrix);    
+    // Helper method to extract azimuth and altitude from filtered matrix
+    void updateOrientationFromMatrix();
     // Setters
     void setLocation(const GeoCoordinate &location);
     
@@ -141,25 +144,17 @@ private:
     double m_rightAscension;  // in hours
     double m_declination;     // in degrees
 
-    // Kalman filter state
-    double m_azimuthPrev = 0.0;
-    double m_altitudePrev = 0.0;
-    double m_azimuthVelocity = 0.0;
-    double m_altitudeVelocity = 0.0;
-    double m_azimuthCovariance = 1.0;
-    double m_altitudeCovariance = 1.0;
-    // For spike detection
-    double m_lastRawAzimuth = 0.0;
-    double m_lastRawAltitude = 0.0;   
-    // Circular buffers for FIR filtering
-    static const int FILTER_SIZE = 10;
-    std::array<double, FILTER_SIZE> m_azimuthBuffer;
-    std::array<double, FILTER_SIZE> m_altitudeBuffer;
-    int m_bufferIndex = 0;
-    bool m_bufferFilled = false;
-    // Update timestamps for velocity calculation
-    QElapsedTimer m_lastUpdateTime;
-  
+    // Matrix history buffer for filtering
+    static const int MATRIX_BUFFER_SIZE = 10;
+    std::array<RotationMatrix, MATRIX_BUFFER_SIZE> m_matrixBuffer;
+    int m_matrixBufferIndex = 0;
+    bool m_matrixBufferFilled = false;
+    QElapsedTimer m_lastMatrixUpdateTime;
+    
+    // Helper functions for filtering
+    void filterMatrixComponents(const RotationMatrix& newMatrix);
+    int findMostFrequentBin(const std::map<int, int>& histogram);
+    void processFilteredMatrix(const RotationMatrix& matrix);
 };
 
 #endif // SKYVIEWCONTROLLER_H
