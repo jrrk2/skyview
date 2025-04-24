@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
-        <file>SkyView.qml</file>
+        <file>SolarSystemSkyView.qml</file>
     </qresource>
 </RCC>

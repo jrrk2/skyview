@@ -7,38 +7,6 @@
 #include <QMatrix3x3>
 #include <QVector3D>
 
-SkyViewController::SkyViewController(QObject *parent)
-    : QObject(parent),
-      m_sensorBridge(new IOSSensorBridge(this)),
-      m_solarSystemCalculator(new SolarSystemCalculator(this)),
-      m_azimuth(0.0),
-      m_altitude(0.0),
-      m_manualLocationMode(false),
-      m_locationAccuracy(0.0),
-      m_locationStatus("GPS initializing"),
-      m_fieldOfView(50.0), // Default 50 degree field of view
-      m_rightAscension(0.0),
-      m_declination(0.0)
-{
-    // Connect sensor signals
-    connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::rotationMatrixChanged, this, &SkyViewController::onRotationMatrixChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::locationChanged, this, &SkyViewController::onLocationChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::locationErrorOccurred, this, &SkyViewController::onLocationError);
-    connect(m_sensorBridge, &IOSSensorBridge::locationAuthorizationChanged, this, &SkyViewController::onLocationAuthorizationChanged);
-    connect(m_sensorBridge, &IOSSensorBridge::locationMetadataChanged, this, &SkyViewController::onLocationMetadataChanged);
-    
-    // Load some default DSOs
-    loadDefaultDSOs();
-    // Start the timer for velocity calculations
-    // Initialize solar system objects
-    m_solarSystemCalculator->initialize();
-    m_solarSystemCalculator->setFieldOfView(m_fieldOfView);
-    
-    // Start the timer for velocity calculations
-    m_lastMatrixUpdateTime.start();
-}
-
 SkyViewController::~SkyViewController()
 {
     delete m_location;
@@ -190,14 +158,6 @@ void SkyViewController::stopSensors()
     m_sensorBridge->stopSensors();
 }
 
-void SkyViewController::onAzimuthChanged(double azimuth)
-{
-    // Update compass direction
-    m_azimuth = azimuth;
-    emit azimuthChanged(m_azimuth);
-    updateVisibleDSOs();
-}
-
 // Matrix filtering implementation
 void SkyViewController::filterMatrixComponents(const RotationMatrix& newMatrix)
 {
@@ -323,18 +283,6 @@ void SkyViewController::processFilteredMatrix(const RotationMatrix& matrix)
         emit altitudeChanged(m_altitude);
         updateVisibleDSOs();
     }
-}
-
-// Update the onRotationMatrixChanged method to use our new filtering
-void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
-    // Store the raw matrix
-    m_rotationMatrix = matrix;
-    
-    // Apply our histogram-based filtering
-    filterMatrixComponents(matrix);
-    
-    // Emit signal for debugging purposes
-    emit debugDataChanged();
 }
 
 void SkyViewController::onLocationChanged(GeoCoordinate location)
@@ -617,3 +565,84 @@ void SkyViewController::loadDefaultDSOs()
     updateVisibleDSOs();
 }
 
+//  Add these implementations to your SkyViewController.cpp file
+
+QVariantList SkyViewController::getVisibleSolarSystemObjects() const
+{
+    return m_visibleSolarSystemObjects;
+}
+
+void SkyViewController::updateSolarSystemObjects()
+{
+    // Calculate updated positions
+    m_solarSystemCalculator->calculateCurrentPositions();
+    
+    // Get the updated list
+    m_visibleSolarSystemObjects = m_solarSystemCalculator->getVisibleObjects();
+    
+    // Notify UI of changes
+    emit visibleSolarSystemObjectsChanged();
+}
+
+// Modify the initialization in the constructor to properly initialize the SolarSystemCalculator
+SkyViewController::SkyViewController(QObject *parent)
+    : QObject(parent),
+      m_sensorBridge(new IOSSensorBridge(this)),
+      m_solarSystemCalculator(new SolarSystemCalculator(this)),
+      m_azimuth(0.0),
+      m_altitude(0.0),
+      m_manualLocationMode(false),
+      m_locationAccuracy(0.0),
+      m_locationStatus("GPS initializing"),
+      m_fieldOfView(50.0), // Default 50 degree field of view
+      m_rightAscension(0.0),
+      m_declination(0.0)
+{
+    // Connect sensor signals
+    connect(m_sensorBridge, &IOSSensorBridge::azimuthChanged, this, &SkyViewController::onAzimuthChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::rotationMatrixChanged, this, &SkyViewController::onRotationMatrixChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::locationChanged, this, &SkyViewController::onLocationChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::locationErrorOccurred, this, &SkyViewController::onLocationError);
+    connect(m_sensorBridge, &IOSSensorBridge::locationAuthorizationChanged, this, &SkyViewController::onLocationAuthorizationChanged);
+    connect(m_sensorBridge, &IOSSensorBridge::locationMetadataChanged, this, &SkyViewController::onLocationMetadataChanged);
+    
+    // Load some default DSOs
+    loadDefaultDSOs();
+    
+    // Initialize solar system objects
+    m_solarSystemCalculator->initialize();
+    m_solarSystemCalculator->setFieldOfView(m_fieldOfView);
+    
+    // Set up a timer to periodically update solar system objects
+    QTimer* updateTimer = new QTimer(this);
+    connect(updateTimer, &QTimer::timeout, this, &SkyViewController::updateSolarSystemObjects);
+    updateTimer->start(1000); // Update every second
+    
+    // Start the timer for velocity calculations
+    m_lastMatrixUpdateTime.start();
+}
+
+// Also, make sure the following method updates both DSOs and planets when the direction changes
+void SkyViewController::onAzimuthChanged(double azimuth)
+{
+    // Update compass direction
+    m_azimuth = azimuth;
+    emit azimuthChanged(m_azimuth);
+    updateVisibleDSOs();
+    updateSolarSystemObjects(); // Also update planets when direction changes
+}
+
+// Same for altitude changes
+void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
+    // Store the raw matrix
+    m_rotationMatrix = matrix;
+    
+    // Apply our histogram-based filtering
+    filterMatrixComponents(matrix);
+    
+    // Also update solar system objects when orientation changes
+    updateSolarSystemObjects();
+    
+    // Emit signal for debugging purposes
+    emit debugDataChanged();
+}

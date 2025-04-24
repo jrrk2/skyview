@@ -8,6 +8,7 @@
 #include <QElapsedTimer>
 #include "GeoCoordinate.h"
 #include <QHash>
+#include <QTimer>
 #include <QString>
 #include <QUrl>
 #include "IOSSensorBridge.h"
@@ -53,12 +54,14 @@ class SkyViewController : public QObject
     Q_PROPERTY(double declination READ declination NOTIFY declinationChanged)
     Q_PROPERTY(QString formattedRA READ formattedRA NOTIFY rightAscensionChanged)
     Q_PROPERTY(QString formattedDEC READ formattedDEC NOTIFY declinationChanged)
+    // Add this property to expose solar system objects to QML
+    Q_PROPERTY(QVariantList visibleSolarSystemObjects READ getVisibleSolarSystemObjects NOTIFY visibleSolarSystemObjectsChanged)
     
 public:
     explicit SkyViewController(QObject *parent = nullptr);
     ~SkyViewController();
     AstronomyCalculator m_astronomyCalculator;
-    
+  
     // Getters
     double azimuth() const;
     double altitude() const;
@@ -98,6 +101,8 @@ public:
     Q_INVOKABLE void setGPSAccuracy(int accuracy); // 0=Best, 1=Navigation, 2=Balanced, 3=LowPower
     Q_INVOKABLE void useManualLocation(bool manual);
     Q_INVOKABLE void requestLocationPermission();
+    Q_INVOKABLE QVariantList getVisibleSolarSystemObjects() const;
+    Q_INVOKABLE void updateSolarSystemObjects();
     
 signals:
     void azimuthChanged(double azimuth);
@@ -110,6 +115,8 @@ signals:
     void rightAscensionChanged(double ra);
     void declinationChanged(double dec);
     void debugDataChanged();	       
+    // Then add this signal to the signals: section
+    void visibleSolarSystemObjectsChanged();
     
 private slots:
     void onAzimuthChanged(double azimuth);
@@ -126,7 +133,9 @@ private:
 
     // Use AstronomyCalculator for celestial calculations
     SolarSystemCalculator *m_solarSystemCalculator;
-    
+    // And this private member variable to the private: section
+    QVariantList m_visibleSolarSystemObjects;
+  
     // Current orientation
     double m_debugRoll, m_debugPitch, m_debugYaw, m_debugDirX, m_debugDirY, m_debugDirZ;
     double m_azimuth;    // compass direction in degrees (0 = North, 90 = East)

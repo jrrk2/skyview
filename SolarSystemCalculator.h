@@ -41,6 +41,7 @@ class SolarSystemCalculator : public QObject
 public:
     explicit SolarSystemCalculator(SkyViewController* parent = nullptr);
     ~SolarSystemCalculator();
+    void calculateCurrentPositions();
 
     /**
      * @brief Initialize the solar system objects

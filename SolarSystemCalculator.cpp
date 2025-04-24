@@ -354,3 +354,30 @@ void SolarSystemCalculator::setFieldOfView(double fov)
 {
     m_fieldOfView = fov;
 }
+
+void SolarSystemCalculator::calculateCurrentPositions()
+{
+    // Get current time
+    QDateTime now = QDateTime::currentDateTimeUtc();
+    
+    // Convert to Julian date
+    // Julian date calculation - days since Jan 1, 4713 BC at noon
+    QDate date = now.date();
+    QTime time = now.time();
+    
+    int a = (14 - date.month()) / 12;
+    int y = date.year() + 4800 - a;
+    int m = date.month() + 12 * a - 3;
+    
+    double jd = date.day() + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045;
+    
+    // Add time of day
+    double timeValue = time.hour() / 24.0 + time.minute() / 1440.0 + time.second() / 86400.0;
+    jd += timeValue;
+    
+    // Get observer's location from controller
+    GeoCoordinate location = m_controller->location();
+    
+    // Update planet positions
+    updatePositions(jd, location);
+}
