@@ -9,7 +9,7 @@
 
 double SkyViewController::azimuth() const
 {
-    return m_azimuth;
+    return m_azimuth_comp;
 }
 
 double SkyViewController::altitude() const
@@ -242,28 +242,13 @@ void SkyViewController::processFilteredMatrix(const RotationMatrix& matrix)
     float y = -matrix.m32;
     float z = -matrix.m33;
     
-    // Calculate azimuth and altitude
-    double newAzimuth = qRadiansToDegrees(qAtan2(y, x));
-    if (newAzimuth < 0) newAzimuth += 360.0;
-    
     double newAltitude = qRadiansToDegrees(qAsin(z));
     
     // Apply hysteresis filter to reduce jitter
     static const double THRESHOLD = 0.3; // degrees
     
-    bool changed = false;
-    if (qAbs(newAzimuth - m_azimuth) > THRESHOLD) {
-        m_azimuth = newAzimuth;
-        changed = true;
-    }
-    
     if (qAbs(newAltitude - m_altitude) > THRESHOLD) {
         m_altitude = newAltitude;
-        changed = true;
-    }
-    
-    if (changed) {
-        emit azimuthChanged(m_azimuth);
         emit altitudeChanged(m_altitude);
         updateVisibleDSOs();
     }
@@ -389,7 +374,7 @@ void SkyViewController::updateVisibleDSOs()
     
     // Calculate the RA and DEC of the center of view
     double raJ2000, decJ2000, hourAngle;
-    m_astronomyCalculator.horizontalToJ2000(m_azimuth, m_altitude, &raJ2000, &decJ2000, &hourAngle);
+    m_astronomyCalculator.horizontalToJ2000(azimuth(), altitude(), &raJ2000, &decJ2000, &hourAngle);
 
     // Update RA and DEC if they've changed significantly
     if (qAbs(raJ2000 - m_rightAscension) > 0.01 || qAbs(decJ2000 - m_declination) > 0.01) {
@@ -418,7 +403,7 @@ void SkyViewController::updateVisibleDSOs()
         
         // Calculate angular distance between viewing direction and DSO
         double angularSeparation = m_astronomyCalculator.angularSeparation(
-            m_azimuth, m_altitude, dsoAzimuth, dsoAltitude);
+            azimuth(), altitude(), dsoAzimuth, dsoAltitude);
         
         // Transform the sky coordinates to screen coordinates
         
@@ -451,30 +436,15 @@ void SkyViewController::updateVisibleDSOs()
         
         // 4. Calculate screen position
         // Calculate azimuth difference properly across the 0/360 boundary
-        double azDiff = dsoAzimuth - m_azimuth;
+        double azDiff = dsoAzimuth - azimuth();
         if (azDiff > 180) azDiff -= 360;
         if (azDiff < -180) azDiff += 360;
         
         // Convert angular difference to normalized screen coordinates
-        double normAzDiff = -azDiff / (m_fieldOfView / 2.0);
-        
-        // For altitude, we need to map objects differently:
-        // - When we look at horizon (alt = 0), horizon should be at bottom of screen
-        // - When we look up (alt > 0), objects above horizon move up the screen
-        // - When we look down (alt < 0), objects below horizon would be visible
+        double normAzDiff = azDiff / (m_fieldOfView / 2.0);
         
         // Calculate normalized altitude difference
-        double normAltDiff;
-        
-        // This approach keeps the horizon at the bottom of the screen
-        // regardless of where the user is looking
-        if (m_altitude <= 0) {
-            // When looking at or below horizon
-            normAltDiff = -dsoAltitude / (m_fieldOfView / 2.0);
-        } else {
-            // When looking above horizon
-            normAltDiff = -(dsoAltitude - m_altitude) / (m_fieldOfView / 2.0);
-        }
+        double normAltDiff = -(dsoAltitude - m_altitude) / (m_fieldOfView / 2.0);
         
         // Only include objects above the horizon or with special visibility flag
         if (dsoAltitude < -20) {
@@ -588,10 +558,9 @@ SkyViewController::SkyViewController(QObject *parent)
     : QObject(parent),
       m_sensorBridge(new IOSSensorBridge(this)),
       m_compassBridge(new CompassBridge(this)),
-      m_useNativeCompass(true),  // Default to using native compass
       m_headingAccuracy(0.0),
       m_solarSystemCalculator(new SolarSystemCalculator(this)),
-      m_azimuth(0.0),
+      m_azimuth_comp(0.0),
       m_altitude(0.0),
       m_manualLocationMode(false),
       m_locationAccuracy(0.0),
@@ -638,31 +607,9 @@ SkyViewController::~SkyViewController()
     // CompassBridge is a QObject with parent, so Qt will delete it
 }
 
-bool SkyViewController::useNativeCompass() const
-{
-    return m_useNativeCompass;
-}
-
 double SkyViewController::headingAccuracy() const
 {
     return m_headingAccuracy;
-}
-
-void SkyViewController::setUseNativeCompass(bool value)
-{
-    if (m_useNativeCompass != value) {
-        m_useNativeCompass = value;
-        
-        if (m_useNativeCompass) {
-            // Start the native compass
-            m_compassBridge->startCompass();
-        } else {
-            // Stop the native compass, rely on device motion sensors
-            m_compassBridge->stopCompass();
-        }
-        
-        emit useNativeCompassChanged(m_useNativeCompass);
-    }
 }
 
 void SkyViewController::resetCompassCalibration()
@@ -674,10 +621,7 @@ void SkyViewController::resetCompassCalibration()
 void SkyViewController::startSensors()
 {
     m_sensorBridge->startSensors();
-    
-    if (m_useNativeCompass) {
-        m_compassBridge->startCompass();
-    }
+    m_compassBridge->startCompass();
 }
 
 // Modify stopSensors to also stop compass
@@ -689,10 +633,7 @@ void SkyViewController::stopSensors()
 
 void SkyViewController::onCompassHeadingChanged(double heading)
 {
-    if (m_useNativeCompass) {
-        // Apply smoothing to the heading changes
-        smoothHeadingChange(heading);
-    }
+        onAzimuthChanged(heading);
 }
 
 void SkyViewController::onCompassCalibrationChanged(bool calibrating)
@@ -712,33 +653,21 @@ void SkyViewController::onCompassAccuracyChanged(double accuracy)
     emit headingAccuracyChanged(accuracy);
 }
 
-// Modify onAzimuthChanged to respect the native compass setting
-void SkyViewController::onAzimuthChanged(double azimuth)
-{
-    // Only update if not using native compass
-    if (!m_useNativeCompass) {
-        m_azimuth = azimuth;
-        emit azimuthChanged(m_azimuth);
-        updateVisibleDSOs();
-        updateSolarSystemObjects();
-    }
-}
-
 // Add a smoothing function for heading changes to reduce jitter
-void SkyViewController::smoothHeadingChange(double newHeading)
+void SkyViewController::onAzimuthChanged(double newHeading)
 {
     // Apply basic hysteresis filter to reduce small jitters
     static const double THRESHOLD = 0.5; // degrees
     
     // Handle heading wrap-around (0-360 degrees)
-    double diff = newHeading - m_azimuth;
+    double diff = newHeading - m_azimuth_comp;
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
     
     if (qAbs(diff) > THRESHOLD) {
         // Update the azimuth with new heading
-        m_azimuth = newHeading;
-        emit azimuthChanged(m_azimuth);
+        m_azimuth_comp = newHeading;
+        emit azimuthChanged(m_azimuth_comp);
         updateVisibleDSOs();
         updateSolarSystemObjects();
     }

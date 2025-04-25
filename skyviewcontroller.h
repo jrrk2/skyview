@@ -57,7 +57,6 @@ class SkyViewController : public QObject
     Q_PROPERTY(QString formattedDEC READ formattedDEC NOTIFY declinationChanged)
     Q_PROPERTY(QVariantList visibleSolarSystemObjects READ getVisibleSolarSystemObjects NOTIFY visibleSolarSystemObjectsChanged)
     // Add new compass bridge property
-    Q_PROPERTY(bool useNativeCompass READ useNativeCompass WRITE setUseNativeCompass NOTIFY useNativeCompassChanged)
     Q_PROPERTY(double headingAccuracy READ headingAccuracy NOTIFY headingAccuracyChanged)
     
 public:
@@ -92,12 +91,10 @@ public:
     // Helper method to extract azimuth and altitude from filtered matrix
     void updateOrientationFromMatrix();
     // Get compass bridge status
-    bool useNativeCompass() const;
     double headingAccuracy() const;
     
     // Setters
     void setLocation(const GeoCoordinate &location);
-    void setUseNativeCompass(bool value);
     
     // Q_INVOKABLE methods that can be called from QML
     Q_INVOKABLE void addCustomDSO(const QString &name, double ra, double dec, 
@@ -125,7 +122,6 @@ signals:
     void declinationChanged(double dec);
     void debugDataChanged();	       
     void visibleSolarSystemObjectsChanged();
-    void useNativeCompassChanged(bool value);
     void headingAccuracyChanged(double accuracy);
     
 private slots:
@@ -147,7 +143,6 @@ private:
     
     // New CompassBridge
     CompassBridge *m_compassBridge;
-    bool m_useNativeCompass;
     double m_headingAccuracy;
 
     // Use AstronomyCalculator for celestial calculations
@@ -156,7 +151,7 @@ private:
   
     // Current orientation
     double m_debugRoll, m_debugPitch, m_debugYaw, m_debugDirX, m_debugDirY, m_debugDirZ;
-    double m_azimuth;    // compass direction in degrees (0 = North, 90 = East)
+    double m_azimuth_comp;    // compass direction in degrees (0 = North, 90 = East)
     double m_altitude;   // tilt angle in degrees (-90 = down, 0 = horizontal, 90 = up)
     RotationMatrix m_rotationMatrix;
   
@@ -186,9 +181,6 @@ private:
     void filterMatrixComponents(const RotationMatrix& newMatrix);
     int findMostFrequentBin(const std::map<int, int>& histogram);
     void processFilteredMatrix(const RotationMatrix& matrix);
-    
-    // Smooth heading changes
-    void smoothHeadingChange(double newHeading);
 };
 
 #endif // SKYVIEWCONTROLLER_H

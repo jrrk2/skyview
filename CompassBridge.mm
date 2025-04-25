@@ -41,7 +41,11 @@
         // Get magnetic heading
         CLLocationDirection heading = newHeading.magneticHeading;
         
-        // Pass heading and accuracy to the C++ bridge
+        // Log raw heading value for debugging
+        // NSLog(@"Raw heading: %.2f degrees", heading);
+        
+        // Pass raw heading and accuracy to the C++ bridge for now
+        // We'll add correction in SkyViewController
         self.bridge->updateHeading(heading, newHeading.headingAccuracy);
     }
 }
