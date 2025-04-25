@@ -66,10 +66,38 @@ public:
      * @param fov Field of view
      */
     void setFieldOfView(double fov);
+    /**
+     * @brief Initialize the Sun and Moon objects
+     */
+    void initializeSunAndMoon();
 
+    /**
+     * @brief Calculate the Sun's position
+     * @param jd Julian date
+     * @param pos Output position vector (heliocentric)
+     */
+    void calculateSunPosition(double jd, QVector3D& pos);
+
+    /**
+     * @brief Calculate the Moon's position
+     * @param jd Julian date
+     * @param earthPos Earth's position vector
+     * @param moonPos Output position vector (geocentric)
+     */
+    void calculateMoonPosition(double jd, const QVector3D& earthPos, QVector3D& moonPos);
+
+    /**
+     * @brief Calculate and add Sun and Moon to visible objects list
+     * @param jd Julian date
+     * @param observer Observer's location
+     */
+    void calculateSunAndMoon(double jd, const GeoCoordinate& observer);
+ 
 private:
     SkyViewController* m_controller;
     QVector<SolarSystemObject> m_objects;
+    SolarSystemObject m_sunObject;
+    SolarSystemObject m_moonObject;
     QVariantList m_visibleObjects;
     double m_fieldOfView;
 

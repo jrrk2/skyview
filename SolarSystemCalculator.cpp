@@ -24,11 +24,6 @@ SolarSystemCalculator::~SolarSystemCalculator()
 {
 }
 
-void SolarSystemCalculator::initialize()
-{
-    initializePlanets();
-}
-
 void SolarSystemCalculator::initializePlanets()
 {
     // Clear any existing objects
@@ -152,88 +147,6 @@ void SolarSystemCalculator::initializePlanets()
     neptune.phaseCoefficient = 0.0;
     neptune.imageUrl = QUrl("qrc:/images/neptune.jpg");
     m_objects.append(neptune);
-}
-
-void SolarSystemCalculator::updatePositions(double jd, const GeoCoordinate& observer)
-{
-    // Clear previous positions
-    m_visibleObjects.clear();
-
-    // Earth's position - special case, we need it for all other calculations
-    QVector3D earthPos(0, 0, 0);
-    {
-        // Simplified Earth elements for calculating Earth position relative to the Sun
-        SolarSystemObject earth;
-        earth.semiMajorAxis = 1.00000261;
-        earth.eccentricity = 0.01671123;
-        earth.inclination = 0.00001531 * DEG_TO_RAD;
-        earth.longAscNode = 180.0 * DEG_TO_RAD;
-        earth.argPerihelion = 102.93768193 * DEG_TO_RAD;
-        earth.meanAnomaly = 100.46457166 * DEG_TO_RAD;
-        earth.epochJD = JD_J2000;
-        
-        // Calculate Earth position
-        calculateKeplerianPosition(earth, jd, earthPos);
-    }
-
-    // Sun's position (from barycenter)
-    QVector3D sunPos(0, 0, 0);  // Simplified - Sun is approximately at the barycenter
-    
-    // Get current viewing direction
-    double azimuth = m_controller->azimuth() * DEG_TO_RAD;
-    double altitude = m_controller->altitude() * DEG_TO_RAD;
-    
-    // Calculate for each planet
-    for (const SolarSystemObject& object : m_objects) {
-        double ra, dec, distance, phase, mag;
-        
-        // Calculate position
-        calculatePosition(object, jd, earthPos, sunPos, ra, dec, distance, phase, mag);
-        
-        // Convert RA/Dec to Azimuth/Altitude for field of view calculations
-        double az, alt;
-        m_controller->m_astronomyCalculator.equatorialToHorizontal(ra/DEG_TO_RAD, dec/DEG_TO_RAD, &az, &alt);
-        
-        // Angular distance from viewing center
-        double dAz = az - m_controller->azimuth();
-        if (dAz > 180) dAz -= 360;
-        if (dAz < -180) dAz += 360;
-        
-        double dAlt = alt - m_controller->altitude();
-        double angularDistance = qSqrt(dAz*dAz + dAlt*dAlt);
-        
-        // Only include objects within field of view
-        if (angularDistance <= m_fieldOfView/2) {
-            // Convert angular difference to normalized screen coordinates
-            double normAzDiff = -dAz / (m_fieldOfView/2);
-            double normAltDiff = -dAlt / (m_fieldOfView/2);
-            
-            // Clamp values to ensure they're in display range (-0.9 to 0.9)
-            normAzDiff = qBound(-0.9, normAzDiff, 0.9);
-            normAltDiff = qBound(-0.9, normAltDiff, 0.9);
-            
-            // Calculate apparent angular size (arcseconds)
-            double angSize = object.angularSize / distance;
-            
-            // Create data map for this object
-            QVariantMap objectMap;
-            objectMap["name"] = object.name;
-            objectMap["ra"] = ra;
-            objectMap["dec"] = dec;
-            objectMap["azimuth"] = az;
-            objectMap["altitude"] = alt;
-            objectMap["distance"] = distance;
-            objectMap["magnitude"] = mag;
-            objectMap["angularSize"] = angSize;
-            objectMap["phase"] = phase;
-            objectMap["viewX"] = normAzDiff;
-            objectMap["viewY"] = normAltDiff;
-            objectMap["imageUrl"] = object.imageUrl;
-            objectMap["displaySize"] = qMax(10.0, angSize * 0.1);  // Size on screen
-            
-            m_visibleObjects.append(objectMap);
-        }
-    }
 }
 
 void SolarSystemCalculator::calculatePosition(const SolarSystemObject& object, double jd,
@@ -380,4 +293,373 @@ void SolarSystemCalculator::calculateCurrentPositions()
     
     // Update planet positions
     updatePositions(jd, location);
+}
+
+// Add these methods to SolarSystemCalculator.cpp
+
+void SolarSystemCalculator::initializeSunAndMoon()
+{
+    // Clear any existing sun/moon data
+    m_sunObject = SolarSystemObject();
+    m_moonObject = SolarSystemObject();
+    
+    // Initialize the Sun
+    m_sunObject.id = 0;
+    m_sunObject.name = "Sun";
+    m_sunObject.magnitude = -26.74;
+    m_sunObject.angularSize = 1919.26; // arcseconds (approx 31.6 arcminutes at 1 AU)
+    m_sunObject.imageUrl = QUrl("qrc:/images/sun.jpg");
+    
+    // Initialize the Moon
+    m_moonObject.id = 10;
+    m_moonObject.name = "Moon";
+    m_moonObject.magnitude = -12.74;
+    m_moonObject.angularSize = 1800.0; // arcseconds (approx 30 arcminutes, varies with distance)
+    m_moonObject.imageUrl = QUrl("qrc:/images/moon.jpg");
+    
+    // Note: We don't set orbital elements for Sun/Moon since we'll calculate their positions differently
+}
+
+void SolarSystemCalculator::calculateSunPosition(double jd, QVector3D& pos)
+{
+    // Time in Julian centuries since J2000.0
+    double T = (jd - 2451545.0) / 36525.0;
+    
+    // Mean longitude of the Sun
+    double L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T * T;
+    
+    // Mean anomaly of the Sun
+    double M = 357.52911 + 35999.05029 * T - 0.0001537 * T * T;
+    
+    // Convert to radians
+    double Mrad = M * DEG_TO_RAD;
+    
+    // Equation of the center
+    double C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * qSin(Mrad)
+               + (0.019993 - 0.000101 * T) * qSin(2 * Mrad)
+               + 0.000289 * qSin(3 * Mrad);
+    
+    // True longitude of the Sun
+    double L = L0 + C;
+    
+    // Convert to radians
+    double Lrad = L * DEG_TO_RAD;
+    
+    // Earth's distance from the Sun in AU
+    double R = 1.000001018 * (1 - 0.016708634 * qCos(Mrad) - 0.000139589 * qCos(2 * Mrad));
+    
+    // Obliquity of the ecliptic
+    double eps = (23.439291 - 0.0130042 * T) * DEG_TO_RAD;
+    
+    // Sun's rectangular coordinates (x,y,z) in equatorial system
+    double x = R * qCos(Lrad);
+    double y = R * qSin(Lrad) * qCos(eps);
+    double z = R * qSin(Lrad) * qSin(eps);
+    
+    // Set the Sun's position (note: we negate it because we're calculating Earth->Sun vector)
+    pos.setX(-x);
+    pos.setY(-y);
+    pos.setZ(-z);
+}
+
+void SolarSystemCalculator::calculateMoonPosition(double jd, const QVector3D& earthPos, QVector3D& moonPos)
+{
+    // Time in Julian centuries since J2000.0
+    double T = (jd - 2451545.0) / 36525.0;
+    
+    // Moon's mean longitude
+    double L = 218.3164477 + 481267.88123421 * T
+               - 0.0015786 * T * T
+               + T * T * T / 538841.0
+               - T * T * T * T / 65194000.0;
+    
+    // Moon's mean elongation
+    double D = 297.8501921 + 445267.1114034 * T
+               - 0.0018819 * T * T
+               + T * T * T / 545868.0
+               - T * T * T * T / 113065000.0;
+    
+    // Sun's mean anomaly
+    double M = 357.5291092 + 35999.0502909 * T
+               - 0.0001536 * T * T
+               + T * T * T / 24490000.0;
+    
+    // Moon's mean anomaly
+    double M_ = 134.9633964 + 477198.8675055 * T
+                + 0.0087414 * T * T
+                + T * T * T / 69699.0
+                - T * T * T * T / 14712000.0;
+    
+    // Moon's argument of latitude
+    double F = 93.2720950 + 483202.0175233 * T
+               - 0.0036539 * T * T
+               - T * T * T / 3526000.0
+               + T * T * T * T / 863310000.0;
+    
+    // Convert to radians
+    double Lrad = L * DEG_TO_RAD;
+    double Drad = D * DEG_TO_RAD;
+    double Mrad = M * DEG_TO_RAD;
+    double M_rad = M_ * DEG_TO_RAD;
+    double Frad = F * DEG_TO_RAD;
+    
+    // Corrections for ecliptic longitude
+    double dL = 0;
+    dL += 22640 * qSin(M_rad);
+    dL += 769 * qSin(2 * M_rad);
+    dL += -4586 * qSin(M_rad - 2 * Drad);
+    dL += 2370 * qSin(2 * Drad);
+    dL += -668 * qSin(Mrad);
+    dL += -412 * qSin(2 * Frad);
+    // (more terms would go here for higher precision)
+    
+    // Corrections for ecliptic latitude
+    double dB = 0;
+    dB += 18520 * qSin(Frad + M_rad - Drad);
+    dB += -526 * qSin(Frad - M_rad);
+    // (more terms would go here for higher precision)
+    
+    // Corrections for distance
+    double dR = 0;
+    dR += -20905355 * qCos(M_rad);
+    dR += -3699111 * qCos(2 * Drad - M_rad);
+    dR += -2955968 * qCos(2 * Drad);
+    // (more terms would go here for higher precision)
+    
+    // Ecliptic longitude and latitude
+    double lambda = L + dL / 1000000; // in degrees
+    double beta = dB / 1000000; // in degrees
+    
+    // Distance in Earth radii
+    double delta = 385000.56 + dR / 1000; // in km
+    
+    // Convert to AU
+    delta = delta / 149597870.7;
+    
+    // Convert to radians
+    lambda = lambda * DEG_TO_RAD;
+    beta = beta * DEG_TO_RAD;
+    
+    // Obliquity of the ecliptic
+    double eps = (23.439291 - 0.0130042 * T) * DEG_TO_RAD;
+    
+    // Moon's rectangular coordinates (x,y,z) in equatorial system
+    double x = delta * qCos(beta) * qCos(lambda);
+    double y = delta * qCos(beta) * qSin(lambda) * qCos(eps) - delta * qSin(beta) * qSin(eps);
+    double z = delta * qCos(beta) * qSin(lambda) * qSin(eps) + delta * qSin(beta) * qCos(eps);
+    
+    // Set the Moon's position relative to Earth
+    moonPos.setX(x);
+    moonPos.setY(y);
+    moonPos.setZ(z);
+}
+
+void SolarSystemCalculator::calculateSunAndMoon(double jd, const GeoCoordinate& observer)
+{
+    // Earth's position (not used for Sun/Moon but needed for planet calculations)
+    QVector3D earthPos(0, 0, 0);
+    
+    // Calculate Sun position
+    QVector3D sunPos;
+    calculateSunPosition(jd, sunPos);
+    
+    // Calculate Moon position relative to Earth
+    QVector3D moonPos;
+    calculateMoonPosition(jd, earthPos, moonPos);
+    
+    // Add Sun to visible objects if in field of view
+    double sunRA = qAtan2(sunPos.y(), sunPos.x()) * RAD_TO_DEG;
+    if (sunRA < 0) sunRA += 360.0;
+    double sunDec = qAsin(sunPos.z() / sunPos.length()) * RAD_TO_DEG;
+    double sunDistance = sunPos.length(); // in AU
+    
+    // Convert to azimuth/altitude
+    double sunAz, sunAlt;
+    m_controller->m_astronomyCalculator.equatorialToHorizontal(sunRA/15.0, sunDec, &sunAz, &sunAlt);
+    
+    // Get current viewing direction
+    double viewAz = m_controller->azimuth();
+    double viewAlt = m_controller->altitude();
+    
+    // Calculate angular distance from viewing center
+    double dAz = sunAz - viewAz;
+    if (dAz > 180) dAz -= 360;
+    if (dAz < -180) dAz += 360;
+    
+    double dAlt = sunAlt - viewAlt;
+    double angularDistance = qSqrt(dAz*dAz + dAlt*dAlt);
+    
+    // Add Sun to visible objects if in field of view
+    if (angularDistance <= m_fieldOfView/2) {
+        // Normalized screen coordinates
+        double normAzDiff = -dAz / (m_fieldOfView/2);
+        double normAltDiff = -dAlt / (m_fieldOfView/2);
+        
+        // Clamp values
+        normAzDiff = qBound(-0.9, normAzDiff, 0.9);
+        normAltDiff = qBound(-0.9, normAltDiff, 0.9);
+        
+        // Create data map for Sun
+        QVariantMap sunMap;
+        sunMap["name"] = m_sunObject.name;
+        sunMap["ra"] = sunRA;
+        sunMap["dec"] = sunDec;
+        sunMap["azimuth"] = sunAz;
+        sunMap["altitude"] = sunAlt;
+        sunMap["distance"] = sunDistance;
+        sunMap["magnitude"] = m_sunObject.magnitude;
+        sunMap["angularSize"] = m_sunObject.angularSize / sunDistance; // in arcseconds
+        sunMap["viewX"] = normAzDiff;
+        sunMap["viewY"] = normAltDiff;
+        sunMap["imageUrl"] = m_sunObject.imageUrl;
+        sunMap["displaySize"] = 80;  // Make the sun reasonably large on screen
+        sunMap["isSun"] = true;      // Special flag for rendering
+        
+        m_visibleObjects.append(sunMap);
+    }
+    
+    // Add Moon to visible objects if in field of view
+    double moonRA = qAtan2(moonPos.y(), moonPos.x()) * RAD_TO_DEG;
+    if (moonRA < 0) moonRA += 360.0;
+    double moonDec = qAsin(moonPos.z() / moonPos.length()) * RAD_TO_DEG;
+    double moonDistance = moonPos.length(); // in AU
+    
+    // Convert to azimuth/altitude
+    double moonAz, moonAlt;
+    m_controller->m_astronomyCalculator.equatorialToHorizontal(moonRA/15.0, moonDec, &moonAz, &moonAlt);
+    
+    // Calculate angular distance from viewing center for Moon
+    dAz = moonAz - viewAz;
+    if (dAz > 180) dAz -= 360;
+    if (dAz < -180) dAz += 360;
+    
+    dAlt = moonAlt - viewAlt;
+    angularDistance = qSqrt(dAz*dAz + dAlt*dAlt);
+    
+    // Calculate moon phase (0 to 1, where 0 is new moon and 1 is full moon)
+    double moonPhase = 0.5 * (1 - qCos(qAtan2(sunPos.y() - moonPos.y(), sunPos.x() - moonPos.x()) - 
+                                        qAtan2(moonPos.y(), moonPos.x())));
+    
+    // Add Moon to visible objects if in field of view
+    if (angularDistance <= m_fieldOfView/2) {
+        // Normalized screen coordinates
+        double normAzDiff = -dAz / (m_fieldOfView/2);
+        double normAltDiff = -dAlt / (m_fieldOfView/2);
+        
+        // Clamp values
+        normAzDiff = qBound(-0.9, normAzDiff, 0.9);
+        normAltDiff = qBound(-0.9, normAltDiff, 0.9);
+        
+        // Create data map for Moon
+        QVariantMap moonMap;
+        moonMap["name"] = m_moonObject.name;
+        moonMap["ra"] = moonRA;
+        moonMap["dec"] = moonDec;
+        moonMap["azimuth"] = moonAz;
+        moonMap["altitude"] = moonAlt;
+        moonMap["distance"] = moonDistance;
+        moonMap["magnitude"] = m_moonObject.magnitude;
+        moonMap["angularSize"] = m_moonObject.angularSize;
+        moonMap["phase"] = moonPhase;
+        moonMap["viewX"] = normAzDiff;
+        moonMap["viewY"] = normAltDiff;
+        moonMap["imageUrl"] = m_moonObject.imageUrl;
+        moonMap["displaySize"] = 50;  // Make the moon reasonably large on screen
+        moonMap["isMoon"] = true;     // Special flag for rendering
+        
+        m_visibleObjects.append(moonMap);
+    }
+}
+
+// Update the updatePositions method to also include the Sun and Moon
+void SolarSystemCalculator::updatePositions(double jd, const GeoCoordinate& observer)
+{
+    // Clear previous positions
+    m_visibleObjects.clear();
+
+    // Earth's position - special case, we need it for all other calculations
+    QVector3D earthPos(0, 0, 0);
+    {
+        // Simplified Earth elements for calculating Earth position relative to the Sun
+        SolarSystemObject earth;
+        earth.semiMajorAxis = 1.00000261;
+        earth.eccentricity = 0.01671123;
+        earth.inclination = 0.00001531 * DEG_TO_RAD;
+        earth.longAscNode = 180.0 * DEG_TO_RAD;
+        earth.argPerihelion = 102.93768193 * DEG_TO_RAD;
+        earth.meanAnomaly = 100.46457166 * DEG_TO_RAD;
+        earth.epochJD = JD_J2000;
+        
+        // Calculate Earth position
+        calculateKeplerianPosition(earth, jd, earthPos);
+    }
+
+    // Sun's position (from barycenter)
+    QVector3D sunPos(0, 0, 0);  // Simplified - Sun is approximately at the barycenter
+    
+    // Add Sun and Moon (special calculations)
+    calculateSunAndMoon(jd, observer);
+    
+    // Get current viewing direction
+    double azimuth = m_controller->azimuth() * DEG_TO_RAD;
+    double altitude = m_controller->altitude() * DEG_TO_RAD;
+    
+    // Calculate for each planet (existing code)
+    for (const SolarSystemObject& object : m_objects) {
+        double ra, dec, distance, phase, mag;
+        
+        // Calculate position
+        calculatePosition(object, jd, earthPos, sunPos, ra, dec, distance, phase, mag);
+        
+        // Convert RA/Dec to Azimuth/Altitude for field of view calculations
+        double az, alt;
+        m_controller->m_astronomyCalculator.equatorialToHorizontal(ra/15.0/DEG_TO_RAD, dec/DEG_TO_RAD, &az, &alt);
+        
+        // Angular distance from viewing center
+        double dAz = az - m_controller->azimuth();
+        if (dAz > 180) dAz -= 360;
+        if (dAz < -180) dAz += 360;
+        
+        double dAlt = alt - m_controller->altitude();
+        double angularDistance = qSqrt(dAz*dAz + dAlt*dAlt);
+        
+        // Only include objects within field of view
+        if (angularDistance <= m_fieldOfView/2) {
+            // Convert angular difference to normalized screen coordinates
+            double normAzDiff = -dAz / (m_fieldOfView/2);
+            double normAltDiff = -dAlt / (m_fieldOfView/2);
+            
+            // Clamp values to ensure they're in display range (-0.9 to 0.9)
+            normAzDiff = qBound(-0.9, normAzDiff, 0.9);
+            normAltDiff = qBound(-0.9, normAltDiff, 0.9);
+            
+            // Calculate apparent angular size (arcseconds)
+            double angSize = object.angularSize / distance;
+            
+            // Create data map for this object
+            QVariantMap objectMap;
+            objectMap["name"] = object.name;
+            objectMap["ra"] = ra;
+            objectMap["dec"] = dec;
+            objectMap["azimuth"] = az;
+            objectMap["altitude"] = alt;
+            objectMap["distance"] = distance;
+            objectMap["magnitude"] = mag;
+            objectMap["angularSize"] = angSize;
+            objectMap["phase"] = phase;
+            objectMap["viewX"] = normAzDiff;
+            objectMap["viewY"] = normAltDiff;
+            objectMap["imageUrl"] = object.imageUrl;
+            objectMap["displaySize"] = qMax(10.0, angSize * 0.1);  // Size on screen
+            
+            m_visibleObjects.append(objectMap);
+        }
+    }
+}
+
+// Update the initialize method to include Sun and Moon
+void SolarSystemCalculator::initialize()
+{
+    initializePlanets();
+    initializeSunAndMoon();
 }
