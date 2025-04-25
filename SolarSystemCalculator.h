@@ -66,35 +66,10 @@ public:
      * @param fov Field of view
      */
     void setFieldOfView(double fov);
-    /**
-     * @brief Initialize the Sun and Moon objects
-     */
-    void initializeSunAndMoon();
-
-    /**
-     * @brief Calculate the Sun's position
-     * @param jd Julian date
-     * @param pos Output position vector (heliocentric)
-     */
-    void calculateSunPosition(double jd, QVector3D& pos);
-
-    /**
-     * @brief Calculate the Moon's position
-     * @param jd Julian date
-     * @param earthPos Earth's position vector
-     * @param moonPos Output position vector (geocentric)
-     */
-    void calculateMoonPosition(double jd, const QVector3D& earthPos, QVector3D& moonPos);
-
-    /**
-     * @brief Calculate and add Sun and Moon to visible objects list
-     * @param jd Julian date
-     * @param observer Observer's location
-     */
-    void calculateSunAndMoon(double jd, const GeoCoordinate& observer);
     // Add this method to your SolarSystemCalculator class
     void debugMarsJ2000Position();
-    void calculateAccuratePlanetPosition(const QString& planetName, double jd, const GeoCoordinate& observer, double& ra, double& dec, double &distance, double &phase, double& mag);
+    void calculateAccuratePlanetPosition(int ix, const QString&, double, const GeoCoordinate&,
+					 double&, double&, double &nce, double &, double&, double&, double&);
     double calculateJulianDate(const QDateTime& dateTime);
 
 private:
