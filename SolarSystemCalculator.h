@@ -18,16 +18,8 @@ class SkyViewController;
 struct SolarSystemObject {
     int id;                  // Object ID
     QString name;            // Object name
-    double semiMajorAxis;    // Semi-major axis in AU
-    double eccentricity;     // Eccentricity
-    double inclination;      // Inclination in radians
-    double longAscNode;      // Longitude of ascending node in radians
-    double argPerihelion;    // Argument of perihelion in radians
-    double meanAnomaly;      // Mean anomaly in radians at epoch
-    double epochJD;          // Epoch as Julian Date
     double angularSize;      // Angular size in arcseconds at 1 AU
     double magnitude;        // Absolute magnitude
-    double phaseCoefficient; // Phase coefficient for magnitude calculation
     QUrl imageUrl;           // URL to an image of this object
 };
 
@@ -101,15 +93,6 @@ private:
      * @brief Set up the planets of the solar system
      */
     void initializePlanets();
-
-    /**
-     * @brief Calculate the position of an object using Keplerian elements
-     * @param object Object to calculate for
-     * @param jd Julian date
-     * @param pos Output position vector in AU
-     */
-    void calculateKeplerianPosition(const SolarSystemObject& object, double jd, QVector3D& pos);
-    double calculateMeanMotion(double semiMajorAxis);
 };
 
 #endif // SOLARSYSTEMCALCULATOR_H

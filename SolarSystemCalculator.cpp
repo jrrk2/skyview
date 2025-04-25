@@ -50,16 +50,8 @@ void SolarSystemCalculator::initializePlanets()
     SolarSystemObject mercury;
     mercury.id = 1;
     mercury.name = "Mercury";
-    mercury.semiMajorAxis = 0.38709927;
-    mercury.eccentricity = 0.20563593;
-    mercury.inclination = 7.00497902 * DEG_TO_RAD;
-    mercury.longAscNode = 48.33076593 * DEG_TO_RAD;
-    mercury.argPerihelion = 77.45779628 * DEG_TO_RAD;
-    mercury.meanAnomaly = 252.25032350 * DEG_TO_RAD;
-    mercury.epochJD = JD_J2000;
     mercury.angularSize = 6.74; // arcseconds at 1 AU
     mercury.magnitude = -0.6;
-    mercury.phaseCoefficient = 3.8;
     mercury.imageUrl = QUrl("qrc:/images/mercury.jpg");
     m_objects.append(mercury);
 
@@ -67,16 +59,8 @@ void SolarSystemCalculator::initializePlanets()
     SolarSystemObject venus;
     venus.id = 2;
     venus.name = "Venus";
-    venus.semiMajorAxis = 0.72333566;
-    venus.eccentricity = 0.00677672;
-    venus.inclination = 3.39467605 * DEG_TO_RAD;
-    venus.longAscNode = 76.67984255 * DEG_TO_RAD;
-    venus.argPerihelion = 131.60246718 * DEG_TO_RAD;
-    venus.meanAnomaly = 181.97909950 * DEG_TO_RAD;
-    venus.epochJD = JD_J2000;
     venus.angularSize = 16.92; // arcseconds at 1 AU
     venus.magnitude = -4.6;
-    venus.phaseCoefficient = 0.65;
     venus.imageUrl = QUrl("qrc:/images/venus.jpg");
     m_objects.append(venus);
 
@@ -84,16 +68,8 @@ void SolarSystemCalculator::initializePlanets()
     SolarSystemObject mars;
     mars.id = 4;
     mars.name = "Mars";
-    mars.semiMajorAxis = 1.52371034;
-    mars.eccentricity = 0.09339410;
-    mars.inclination = 1.84969142 * DEG_TO_RAD;
-    mars.longAscNode = 49.55953891 * DEG_TO_RAD;
-    mars.argPerihelion = 336.04084219 * DEG_TO_RAD;
-    mars.meanAnomaly = 355.45332150 * DEG_TO_RAD;
-    mars.epochJD = JD_J2000;
     mars.angularSize = 9.36; // arcseconds at 1 AU
     mars.magnitude = -1.52;
-    mars.phaseCoefficient = 1.6;
     mars.imageUrl = QUrl("qrc:/images/mars.jpg");
     m_objects.append(mars);
 
@@ -101,16 +77,8 @@ void SolarSystemCalculator::initializePlanets()
     SolarSystemObject jupiter;
     jupiter.id = 5;
     jupiter.name = "Jupiter";
-    jupiter.semiMajorAxis = 5.20288700;
-    jupiter.eccentricity = 0.04838624;
-    jupiter.inclination = 1.30439695 * DEG_TO_RAD;
-    jupiter.longAscNode = 100.47390909 * DEG_TO_RAD;
-    jupiter.argPerihelion = 14.72847983 * DEG_TO_RAD;
-    jupiter.meanAnomaly = 34.39644051 * DEG_TO_RAD;
-    jupiter.epochJD = JD_J2000;
     jupiter.angularSize = 196.74; // arcseconds at 1 AU
     jupiter.magnitude = -9.4;
-    jupiter.phaseCoefficient = 0.0;
     jupiter.imageUrl = QUrl("qrc:/images/jupiter.jpg");
     m_objects.append(jupiter);
 
@@ -118,16 +86,8 @@ void SolarSystemCalculator::initializePlanets()
     SolarSystemObject saturn;
     saturn.id = 6;
     saturn.name = "Saturn";
-    saturn.semiMajorAxis = 9.53667594;
-    saturn.eccentricity = 0.05386179;
-    saturn.inclination = 2.48599187 * DEG_TO_RAD;
-    saturn.longAscNode = 113.66242448 * DEG_TO_RAD;
-    saturn.argPerihelion = 92.59887831 * DEG_TO_RAD;
-    saturn.meanAnomaly = 49.95424423 * DEG_TO_RAD;
-    saturn.epochJD = JD_J2000;
     saturn.angularSize = 165.6; // arcseconds at 1 AU
     saturn.magnitude = -8.88;
-    saturn.phaseCoefficient = 0.0;
     saturn.imageUrl = QUrl("qrc:/images/saturn.jpg");
     m_objects.append(saturn);
 
@@ -135,16 +95,8 @@ void SolarSystemCalculator::initializePlanets()
     SolarSystemObject uranus;
     uranus.id = 7;
     uranus.name = "Uranus";
-    uranus.semiMajorAxis = 19.18916464;
-    uranus.eccentricity = 0.04725744;
-    uranus.inclination = 0.77263783 * DEG_TO_RAD;
-    uranus.longAscNode = 74.01692503 * DEG_TO_RAD;
-    uranus.argPerihelion = 170.95427630 * DEG_TO_RAD;
-    uranus.meanAnomaly = 313.23810451 * DEG_TO_RAD;
-    uranus.epochJD = JD_J2000;
     uranus.angularSize = 70.5; // arcseconds at 1 AU
     uranus.magnitude = -7.19;
-    uranus.phaseCoefficient = 0.0;
     uranus.imageUrl = QUrl("qrc:/images/uranus.jpg");
     m_objects.append(uranus);
 
@@ -152,58 +104,10 @@ void SolarSystemCalculator::initializePlanets()
     SolarSystemObject neptune;
     neptune.id = 8;
     neptune.name = "Neptune";
-    neptune.semiMajorAxis = 30.06992276;
-    neptune.eccentricity = 0.00859048;
-    neptune.inclination = 1.77004347 * DEG_TO_RAD;
-    neptune.longAscNode = 131.78422574 * DEG_TO_RAD;
-    neptune.argPerihelion = 44.97135093 * DEG_TO_RAD;
-    neptune.meanAnomaly = 304.88003451 * DEG_TO_RAD;
-    neptune.epochJD = JD_J2000;
     neptune.angularSize = 68.3; // arcseconds at 1 AU
     neptune.magnitude = -6.87;
-    neptune.phaseCoefficient = 0.0;
     neptune.imageUrl = QUrl("qrc:/images/neptune.jpg");
     m_objects.append(neptune);
-}
-
-void SolarSystemCalculator::calculatePosition(const SolarSystemObject& object, double jd,
-                                           const QVector3D& earthPos, const QVector3D& sunPos,
-                                           double& ra, double& dec, double& distance, 
-                                           double& phase, double& mag)
-{
-    // Calculate heliocentric position
-    QVector3D objectPos;
-    calculateKeplerianPosition(object, jd, objectPos);
-    
-    // Object position relative to Earth
-    QVector3D objectPosFromEarth = objectPos - earthPos;
-    
-    // Calculate RA and Dec
-    distance = objectPosFromEarth.length();
-    
-    // RA and Dec
-    ra = qAtan2(objectPosFromEarth.y(), objectPosFromEarth.x()) * RAD_TO_DEG;
-    if (ra < 0) ra += 360.0;
-    
-    dec = qAsin(objectPosFromEarth.z() / distance) * RAD_TO_DEG;
-    
-    // Calculate Sun-Object-Earth phase angle
-    QVector3D objectPosFromSun = objectPos - sunPos;
-    double sunDistance = objectPosFromSun.length();
-    
-    // Cosine of phase angle
-    double cosPhaseAngle = QVector3D::dotProduct(objectPosFromEarth, objectPosFromSun) / 
-                           (distance * sunDistance);
-    
-    // Ensure cosine is in valid range [-1, 1]
-    cosPhaseAngle = qBound(-1.0, cosPhaseAngle, 1.0);
-    
-    // Calculate phase (0 to 1, where 1 is fully illuminated)
-    phase = (1.0 + cosPhaseAngle) / 2.0;
-    
-    // Calculate apparent magnitude
-    mag = object.magnitude + 5.0 * qLn(sunDistance * distance) / qLn(10.0) - 
-          2.5 * qLn(phase) / qLn(10.0) * object.phaseCoefficient;
 }
 
 QVariantList SolarSystemCalculator::getVisibleObjects() const
