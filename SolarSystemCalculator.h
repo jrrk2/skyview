@@ -92,7 +92,11 @@ public:
      * @param observer Observer's location
      */
     void calculateSunAndMoon(double jd, const GeoCoordinate& observer);
- 
+    // Add this method to your SolarSystemCalculator class
+    void debugMarsJ2000Position();
+    void calculateAccuratePlanetPosition(const QString& planetName, double jd, const GeoCoordinate& observer, double& ra, double& dec, double &distance, double &phase, double& mag);
+    double calculateJulianDate(const QDateTime& dateTime);
+
 private:
     SkyViewController* m_controller;
     QVector<SolarSystemObject> m_objects;

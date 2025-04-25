@@ -20,7 +20,6 @@ SOURCES += \
     SolarSystemCalculator.cpp \
     GeoCoordinate.cpp \
     src/argparse/argparse.c \
-    src/asteroids.c \
     src/coreUtils/asciiDouble.c \
     src/coreUtils/errorReport.c \
     src/coreUtils/makeRasters.c \
@@ -37,7 +36,6 @@ SOURCES += \
     src/mathsTools/julianDate.c \
     src/mathsTools/precess_equinoxes.c \
     src/mathsTools/sphericalAst.c \
-    src/partial_file.c \
     src/settings/settings.c \
     
 HEADERS += \
@@ -68,6 +66,13 @@ HEADERS += \
 
 # Add Objective-C++ file for iOS platform
 ios {
+    # Data files to be copied to the bundle
+    datafiles.files = $$files($$PWD/data/*)
+    datafiles.path = data
+    # Add all resource sets to the bundle
+    QMAKE_BUNDLE_DATA += datafiles
+
+    DEFINES += SRCDIR=srcdir DATADIR=datadir DEBUG=1 MEMDEBUG1=0 MEMDEBUG2=0 DCFVERSION=\\\"4.0\\\" DATE=\\\"23/09/2024\\\"
     INCLUDEPATH += src /opt/homebrew/Cellar/gsl/2.8/include
     OBJECTIVE_SOURCES += \
         IOSSensorBridge.mm

@@ -9,15 +9,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define MYFILE_ERROR_NONE 0
-#define MYFILE_ERROR_NOT_FOUND 1
-#define MYFILE_ERROR_NETWORK 2
-#define MYFILE_ERROR_TIMEOUT 3
-#define MYFILE_ERROR_INVALID 4
+#define FILE_ERROR_NONE 0
+#define FILE_ERROR_NOT_FOUND 1
+#define FILE_ERROR_NETWORK 2
+#define FILE_ERROR_TIMEOUT 3
+#define FILE_ERROR_INVALID 4
 
-#define MYFILE_MAX_FILES 256
-#define MYFILE_TIMEOUT_MS 5000
-#define MYFILE_BUFFER_SIZE 8192
+#define FILE_MAX_FILES 256
+#define FILE_TIMEOUT_MS 5000
+#define FILE_BUFFER_SIZE 8192
 
 typedef struct {
     char* filename;
@@ -30,20 +30,20 @@ typedef struct {
     size_t buffer_pos;     // Current position in buffer
     int buffer_valid;      // Whether buffer contains valid data
     void* user_data;      // For future extensibility
-} MYFILE;
+} FILE;
 
 // Core API functions
-MYFILE* myfopen(const char* filename, const char* mode);
-size_t myfread(void* ptr, size_t size, size_t count, MYFILE* file);
-int myfseek(MYFILE* file, int32_t offset, int origin);
-int32_t myftell(MYFILE* file);
-int myferror(MYFILE* file);
-int myfeof(MYFILE* file);
-int myfclose(MYFILE* file);
+FILE* fopen(const char* filename, const char* mode);
+size_t fread(void* ptr, size_t size, size_t count, FILE* file);
+int fseek(FILE* file, int32_t offset, int origin);
+int32_t ftell(FILE* file);
+int ferror(FILE* file);
+int feof(FILE* file);
+int fclose(FILE* file);
 
 // Utility functions
 const char* myfile_strerror(int error_code);
-int32_t myfile_size(MYFILE* file);
+int32_t myfile_size(FILE* file);
 void myfile_set_timeout(int milliseconds);
 void js_fetch_partial_file(const char* url, int32_t start, int32_t end, void* buffer_ptr, int* status_ptr);
 

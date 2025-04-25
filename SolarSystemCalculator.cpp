@@ -1,5 +1,6 @@
 #include "SolarSystemCalculator.h"
 #include "skyviewcontroller.h"
+#include "jpl.h"
 #include <QDebug>
 #include <QVector3D>
 #include <QtMath>
@@ -268,6 +269,47 @@ void SolarSystemCalculator::setFieldOfView(double fov)
     m_fieldOfView = fov;
 }
 
+// Correct Julian Date calculation for midnight vs noon convention
+double SolarSystemCalculator::calculateJulianDate(const QDateTime& dateTime) {
+    // Extract date and time
+    QDate date = dateTime.date();
+    QTime time = dateTime.time();
+    
+    // Get year, month, day
+    int year = date.year();
+    int month = date.month();
+    int day = date.day();
+    bool checked = true;
+    
+    // Handle months January and February (months 1 and 2) as months 13 and 14 of the previous year
+    int Y, M;
+    if (month < 3) {
+        Y = year - 1;
+        M = month + 12;
+    } else {
+        Y = year;
+        M = month;
+    }
+    
+    // Calculate the correction term for Gregorian calendar
+    int C = 0;
+    if (checked) {
+        int A = Y / 100;
+        int B = A / 4;
+        C = 2 - A + B;
+    }
+    
+    // Calculate Julian Day Number (JDN)
+    double E = floor(365.25 * (Y + 4716));
+    double F = floor(30.6001 * (M + 1));
+    double jdn = (double)(C + day) + E + F - 1524.5;
+    
+    // Add time of day (converting from hours to fractional days)
+    double timeInDays = time.hour() / 24.0 + time.minute() / 1440.0 + time.second() / 86400.0;
+    
+    return jdn + timeInDays;
+}
+
 void SolarSystemCalculator::calculateCurrentPositions()
 {
     // Get current time
@@ -275,19 +317,9 @@ void SolarSystemCalculator::calculateCurrentPositions()
     
     // Convert to Julian date
     // Julian date calculation - days since Jan 1, 4713 BC at noon
-    QDate date = now.date();
-    QTime time = now.time();
     
-    int a = (14 - date.month()) / 12;
-    int y = date.year() + 4800 - a;
-    int m = date.month() + 12 * a - 3;
-    
-    double jd = date.day() + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045;
-    
-    // Add time of day
-    double timeValue = time.hour() / 24.0 + time.minute() / 1440.0 + time.second() / 86400.0;
-    jd += timeValue;
-    
+    double jd = calculateJulianDate(now);
+ 
     // Get observer's location from controller
     GeoCoordinate location = m_controller->location();
     
@@ -577,23 +609,6 @@ void SolarSystemCalculator::updatePositions(double jd, const GeoCoordinate& obse
     // Clear previous positions
     m_visibleObjects.clear();
 
-    // Earth's position - special case, we need it for all other calculations
-    QVector3D earthPos(0, 0, 0);
-    {
-        // Simplified Earth elements for calculating Earth position relative to the Sun
-        SolarSystemObject earth;
-        earth.semiMajorAxis = 1.00000261;
-        earth.eccentricity = 0.01671123;
-        earth.inclination = 0.00001531 * DEG_TO_RAD;
-        earth.longAscNode = 180.0 * DEG_TO_RAD;
-        earth.argPerihelion = 102.93768193 * DEG_TO_RAD;
-        earth.meanAnomaly = 100.46457166 * DEG_TO_RAD;
-        earth.epochJD = JD_J2000;
-        
-        // Calculate Earth position
-        calculateKeplerianPosition(earth, jd, earthPos);
-    }
-
     // Sun's position (from barycenter)
     QVector3D sunPos(0, 0, 0);  // Simplified - Sun is approximately at the barycenter
     
@@ -609,11 +624,11 @@ void SolarSystemCalculator::updatePositions(double jd, const GeoCoordinate& obse
         double ra, dec, distance, phase, mag;
         
         // Calculate position
-        calculatePosition(object, jd, earthPos, sunPos, ra, dec, distance, phase, mag);
+        calculateAccuratePlanetPosition(object.name, jd, observer, ra, dec, distance, phase, mag);
         
         // Convert RA/Dec to Azimuth/Altitude for field of view calculations
         double az, alt;
-        m_controller->m_astronomyCalculator.equatorialToHorizontal(ra/15.0/DEG_TO_RAD, dec/DEG_TO_RAD, &az, &alt);
+        m_controller->m_astronomyCalculator.equatorialToHorizontal(ra/15.0, dec, &az, &alt);
         
         // Angular distance from viewing center
         double dAz = az - m_controller->azimuth();
@@ -657,9 +672,130 @@ void SolarSystemCalculator::updatePositions(double jd, const GeoCoordinate& obse
     }
 }
 
+// Add this method to your SolarSystemCalculator class
+void SolarSystemCalculator::debugMarsJ2000Position() {
+    // Use the exact J2000 epoch time that matches the JPL ephemeris
+    // JPL data is for 2451545.25 (2000-01-01 18:00:00 UT)
+    double jdTest = 2451545.25;
+    
+    // Get observer location - can use any location since we're only checking
+    // the RA/DEC which are Earth-centered coordinates
+    GeoCoordinate earthLocation(0.0, 0.0); // Equator at Greenwich
+    
+    // Clear the visible objects list for this test
+    m_visibleObjects.clear();
+    
+    // Run the position calculation with our test date
+    updatePositions(jdTest, earthLocation);
+    
+    // Look for Mars in the calculated objects
+    bool foundMars = false;
+    double calculatedRA = 0.0;
+    double calculatedDEC = 0.0;
+    double calculatedMag = 0.0;
+    
+    // Fix: Use proper QVariant iteration and conversion
+    for (int i = 0; i < m_visibleObjects.size(); i++) {
+        QVariantMap object = m_visibleObjects[i].toMap();
+        if (object["name"].toString() == "Mars") {
+            foundMars = true;
+            calculatedRA = object["ra"].toDouble();
+            calculatedDEC = object["dec"].toDouble();
+            calculatedMag = object["magnitude"].toDouble();
+            break;
+        }
+    }
+    
+    if (!foundMars) {
+        qDebug() << "Mars not found in visible objects! Check field of view settings.";
+        // Temporarily expand field of view if needed
+        double savedFOV = m_fieldOfView;
+        m_fieldOfView = 180.0; // See whole sky
+        updatePositions(jdTest, earthLocation);
+        m_fieldOfView = savedFOV; // Restore original
+        
+        // Try again with the same correction as above
+        for (int i = 0; i < m_visibleObjects.size(); i++) {
+            QVariantMap object = m_visibleObjects[i].toMap();
+            if (object["name"].toString() == "Mars") {
+                foundMars = true;
+                calculatedRA = object["ra"].toDouble();
+                calculatedDEC = object["dec"].toDouble();
+                calculatedMag = object["magnitude"].toDouble();
+                break;
+            }
+        }
+        
+        if (!foundMars) {
+            qDebug() << "Mars still not found! Check planet initialization.";
+            return;
+        }
+    }    
+    
+    // Convert RA from degrees to HMS
+    double ra_hours = calculatedRA / 15.0;
+    int ra_h = (int)ra_hours;
+    double ra_m_decimal = (ra_hours - ra_h) * 60.0;
+    int ra_m = (int)ra_m_decimal;
+    double ra_s = (ra_m_decimal - ra_m) * 60.0;
+    
+    // Convert Dec from degrees to DMS
+    int dec_sign = (calculatedDEC < 0) ? -1 : 1;
+    double dec_abs = fabs(calculatedDEC);
+    int dec_d = (int)dec_abs;
+    double dec_m_decimal = (dec_abs - dec_d) * 60.0;
+    int dec_m = (int)dec_m_decimal;
+    double dec_s = (dec_m_decimal - dec_m) * 60.0;
+    
+    // Print results
+    qDebug() << "=== MARS POSITION AT J2000 MIDNIGHT (JD 2451544.5) ===";
+    qDebug() << "Calculated using existing SolarSystemCalculator:";
+    qDebug().nospace() << "RA: " << ra_h << "h " << ra_m << "m " << ra_s << "s";
+    qDebug().nospace() << "Dec: " << (dec_sign < 0 ? "-" : "+") << dec_d << "° " << dec_m << "' " << dec_s << "\"";
+    qDebug() << "Magnitude: " << calculatedMag;
+    qDebug() << "";
+    qDebug() << "NASA JPL Horizons Ephemeris:";
+    qDebug() << "RA: 22h 00m 36.72s";
+    qDebug() << "Dec: -13° 19' 13.4\"";
+    qDebug() << "Magnitude: 1.089";
+    
+    // Calculate difference
+    double ra_calc_seconds = ra_h * 3600.0 + ra_m * 60.0 + ra_s;
+    double ra_jpl_seconds = 22 * 3600.0 + 0 * 60.0 + 36.72;
+    double ra_diff_seconds = fabs(ra_calc_seconds - ra_jpl_seconds);
+    
+    double dec_calc_seconds = dec_sign * (dec_d * 3600.0 + dec_m * 60.0 + dec_s);
+    double dec_jpl_seconds = -1 * (13 * 3600.0 + 19 * 60.0 + 13.4);
+    double dec_diff_seconds = fabs(dec_calc_seconds - dec_jpl_seconds);
+    
+    qDebug() << "=== DIFFERENCE ===";
+    qDebug() << "RA difference: " << ra_diff_seconds << " arcseconds";
+    qDebug() << "Dec difference: " << dec_diff_seconds << " arcseconds";
+    qDebug() << "Acceptable accuracy: < 60 arcseconds (< 1 arcminute)";
+}
+
 // Update the initialize method to include Sun and Moon
 void SolarSystemCalculator::initialize()
 {
     initializePlanets();
     initializeSunAndMoon();
+    //    debugMarsJ2000Position();
+}
+
+void SolarSystemCalculator::calculateAccuratePlanetPosition(const QString& planetName, double jd, const GeoCoordinate& observer, double& ra, double& dec, double& distance, double& phase, double& mag) {
+    // Convert QString to C-string
+    QByteArray bodyNameBytes = planetName.toLatin1();
+    const char* bodyName = bodyNameBytes.constData();
+    
+    // Call the external ephemeris function
+    double *buffer = ephem(bodyName, jd, observer.latitude(), observer.longitude());
+    
+    // The function prints results, but we also need to capture them
+    // Assuming buffer[3], buffer[4], buffer[5] contain the results in radians
+    // and are accessible here after calling ephem
+    ra = buffer[3] * 180.0 / M_PI;  // Convert to degrees
+    dec = buffer[4] * 180.0 / M_PI; // Convert to degrees
+    distance = buffer[11];
+    phase = buffer[6];
+    mag = buffer[5];
 }

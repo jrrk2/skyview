@@ -281,39 +281,57 @@ int main_args(int argc, const char **argv) {
 static char body[20];
 static settings ephemeris_settings;
 
-EMSCRIPTEN_KEEPALIVE
-double pack_chars_to_float(const char *chars) {
-    double packed = 0.0;
-    for (int i = 0; i < 7; i++) {
-        packed += ldexp((double)(chars[i] & 0x7F), (7 - i) * 7);
-    }
-    return packed;
-}
+char *datadir;
+char *srcdir;
 
-EMSCRIPTEN_KEEPALIVE
-void unpack_float_to_chars(double packed, char *chars) {
-    for (int i = 0; i < 7; i++) {
-        int char_val = (int)(packed / ldexp(1.0, (7 - i) * 7)) & 0x7F;
-        chars[i] = (char)char_val;
-        packed -= char_val * ldexp(1.0, (7 - i) * 7);
-    }
-    chars[7] = '\0'; // Null-terminate the string
-}
+#include <stdio.h>
+#include <math.h>
 
-EMSCRIPTEN_KEEPALIVE
-double myFunction(int arg) {
-    return buffer[arg]; // saved ephem
-}
+void print_ra_dec(double ra, double dec) {
+    char buf[256];
+    memset(buf, 0, sizeof(buf));
+    
+    // Store sign for declination
+    int dec_sign = (dec < 0) ? -1 : 1;
+    
+    // Convert RA from degrees to hours
+    double ra_hours = ra / 15.0;
+    
+    // Extract hours, minutes, seconds for RA
+    int ra_h = (int)ra_hours;
+    double ra_m_decimal = (ra_hours - ra_h) * 60.0;
+    int ra_m = (int)ra_m_decimal;
+    double ra_s = (ra_m_decimal - ra_m) * 60.0;
+    
+    // Extract degrees, arcminutes, arcseconds for Dec
+    dec = fabs(dec); // Work with absolute value
+    int dec_d = (int)dec;
+    double dec_m_decimal = (dec - dec_d) * 60.0;
+    int dec_m = (int)dec_m_decimal;
+    double dec_s = (dec_m_decimal - dec_m) * 60.0;
+    
+    // Print RA in HMS format
+    sprintf(buf, "RA: %dh %02dm %05.2fs\n", ra_h, ra_m, ra_s);
+    ephem_log(buf);
 
-EMSCRIPTEN_KEEPALIVE
-void myFloat(double arg1, double arg2, double step, double latitude, double longitude, double correct, double format) {
+    // Print Dec in DMS format
+    sprintf(buf, "Dec: %c%d° %02d' %05.2f\"\n",
+           (dec_sign < 0) ? '-' : '+',
+           dec_d, dec_m, dec_s);
+    ephem_log(buf);
+
+ }
+
+double *ephem(const char *body, double jd, double latitude, double longitude)
+{
+  double ra, dec, mag;
   printf("selected body: **%s**\n", body);
   // Set up default settings
   settings_default(&ephemeris_settings);
   ephemeris_settings.objects_input_list = body;
-  ephemeris_settings.jd_min = arg1;
-  ephemeris_settings.jd_max = arg2;
-  ephemeris_settings.jd_step = step;
+  ephemeris_settings.jd_min = jd;
+  ephemeris_settings.jd_max = jd + 0.001;
+  ephemeris_settings.jd_step = 1.0;
   ephemeris_settings.latitude = latitude;
   ephemeris_settings.longitude = longitude;
   ephemeris_settings.enable_topocentric_correction = 0.0;
@@ -321,81 +339,76 @@ void myFloat(double arg1, double arg2, double step, double latitude, double long
 
   // Create ephemeris
   compute_ephemeris(&ephemeris_settings);
+  return buffer;
 }
 
-EMSCRIPTEN_KEEPALIVE
-void float_to_string_sub(char *first, double f) {
-  double flr = floor (f / 128.0);
-  double fprime = f - flr * 128.0;
-  int len;
-  if (flr > 0.0) float_to_string_sub(first, flr);
-  len = strlen(first);
-  first[len] = (int) fprime;
-  first[len+1] = 0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-char *float_to_string(double f) {
-  char buf[20];
-  *buf = 0;
-  float_to_string_sub(buf, f);
-  return strdup(buf);
-}
-
-EMSCRIPTEN_KEEPALIVE
-void myAscii(int idx, double asciif)
-{
-  static char *object[4];
-  object[idx] = float_to_string(asciif);
-  if (object[2][0]) sprintf(body, "%s %s", object[1], object[2]);
-  else strcpy(body, object[1]);
-}
-
-EMSCRIPTEN_KEEPALIVE
-#ifndef __EMSCRIPTEN__
-int main(int argc, const char **argv) { return main_args(argc, argv); }
-#else
-
-int main() {
+int ephem_main(const char *data, const char *src) {
 
   int status;
   char buf[256];
+  double jd_2000 = 2451545.25;
+  
+  DATADIR = strdup(data);
+  SRCDIR = strdup(src);
   
     puts("Hello, World");
   
     lt_memoryInit(&ephem_error, &ephem_log);
 
     // Turn off GSL's automatic error handler
-    gsl_set_error_handler_off();
-
-    if (0) puts("Fetch partial");
-    
-    js_fetch_partial_file("data/header.430", 0, 99, buf, &status);
-
-    if (0) puts("Fetched");
+    // gsl_set_error_handler_off();
 
     // Open a file
-    MYFILE* file = myfopen("data/header.430", "rb");
+    memset(buf, 0, sizeof(buf));
+    sprintf(buf, "%s%s", DATADIR, "header.430");
+    FILE* file = fopen(buf, "rb");
     if (!file) {
-	printf("Error: %s\n", myfile_strerror(MYFILE_ERROR_NOT_FOUND));
+	printf("Error: %s\n", strerror(errno));
 	return 1;
     }
 
     // Read some data
     char buffer[1024];
-    size_t read = myfread(buffer, 1, sizeof(buffer), file);
+    size_t read = fread(buffer, 1, sizeof(buffer), file);
     if (read < sizeof(buffer)) {
-	printf("Error: %s\n", myfile_strerror(myferror(file)));
+	printf("Error: %s\n", strerror(ferror(file)));
     }
 
     // Seek to a position
-    if (myfseek(file, 1000, SEEK_SET) != 0) {
+    if (fseek(file, 1000, SEEK_SET) != 0) {
 	printf("Seek failed\n");
     }
 
     // Clean up
-    myfclose(file);
- 
+    fclose(file);
+
+    // ephem("mars", jd_2000, 52.2, -0.07);
+    
     return 0;
 }  
-#endif
+
+// Check if a number is finite (not infinity or NaN)
+int gsl_finite(double x) {
+    return isfinite(x);
+}
+
+// Replace gsl_hypot3 (hypotenuse calculation for 3D vectors)
+double gsl_hypot3(double x, double y, double z) {
+    return sqrt(x*x + y*y + z*z);
+}
+
+// Replace gsl_pow_2 (square of a number)
+double gsl_pow_2(double x) {
+    return x * x;
+}
+
+// Replace gsl_pow_3 (cube of a number)
+double gsl_pow_3(double x) {
+    return x * x * x;
+}
+
+// Replace gsl_pow_4 (fourth power of a number)
+double gsl_pow_4(double x) {
+    double x2 = x * x;
+    return x2 * x2;
+}

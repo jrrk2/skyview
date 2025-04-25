@@ -41,6 +41,7 @@
 #include "mathsTools/sphericalAst.h"
 
 #include "constellations.h"
+#include "jpl.h"
 
 //! constel_point - A structure representing a point on the outline of a constellation.
 
@@ -118,7 +119,7 @@ void constellations_init() {
     // Scan through catalogue of constellation boundaries
     {
         char in_path[FNAME_LENGTH];
-        snprintf(in_path, FNAME_LENGTH, "%s", SRCDIR "../constellations/bound_20.dat");
+        snprintf(in_path, FNAME_LENGTH, "%s%s", SRCDIR, "../constellations/bound_20.dat");
         file = fopen(in_path, "rt");
         if (file == NULL) {
             char buffer[LSTR_LENGTH];
@@ -172,7 +173,7 @@ void constellations_init() {
     // Scan through list of full names
     {
         char in_path[FNAME_LENGTH];
-        snprintf(in_path, FNAME_LENGTH, "%s", SRCDIR "../constellations/constellation_names.dat");
+        snprintf(in_path, FNAME_LENGTH, "%s%s", SRCDIR, "../constellations/constellation_names.dat");
         file = fopen(in_path, "rt");
         if (file == NULL) {
             char buffer[LSTR_LENGTH];

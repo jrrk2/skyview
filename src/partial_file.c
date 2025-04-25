@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static MYFILE file_table[MYFILE_MAX_FILES];
+static FILE file_table[MAX_FILES];
 static int file_count = 0;
 
 #ifdef __EMSCRIPTEN__
@@ -79,28 +79,28 @@ EM_JS(int, js_test_file, (const char* url), {
 });
 #endif
 
-MYFILE* myfopen(const char* filename, const char* mode) {
+FILE* fopen(const char* filename, const char* mode) {
     if (!filename || !mode) {
-      if (0) printf("myfopen: Invalid parameters\n");
+      if (0) printf("fopen: Invalid parameters\n");
         return NULL;
     }
     
-    if (0) printf("myfopen: Opening %s with mode %s\n", filename, mode);
+    if (0) printf("fopen: Opening %s with mode %s\n", filename, mode);
     
     #ifdef __EMSCRIPTEN__
     if (!js_test_file(filename)) {
-        if (0) printf("myfopen: File not found: %s\n", filename);
+        if (0) printf("fopen: File not found: %s\n", filename);
         return NULL;
     }
     #endif
     
-    if (file_count >= MYFILE_MAX_FILES) {
-        if (0) printf("myfopen: Too many open files\n");
+    if (file_count >= FILE_MAX_FILES) {
+        if (0) printf("fopen: Too many open files\n");
         return NULL;
     }
     
-    MYFILE* file = NULL;
-    for (int i = 0; i < MYFILE_MAX_FILES; i++) {
+    FILE* file = NULL;
+    for (int i = 0; i < FILE_MAX_FILES; i++) {
         if (!file_table[i].exists) {
             file = &file_table[i];
             break;
@@ -108,29 +108,29 @@ MYFILE* myfopen(const char* filename, const char* mode) {
     }
     
     if (!file) {
-        if (0) printf("myfopen: No free file slots\n");
+        if (0) printf("fopen: No free file slots\n");
         return NULL;
     }
     
     file->filename = strdup(filename);
     file->position = 0;
     file->exists = 1;
-    file->error_state = MYFILE_ERROR_NONE;
+    file->error_state = FILE_ERROR_NONE;
     
     file_count++;
-    if (0) printf("myfopen: Successfully opened %s\n", filename);
+    if (0) printf("fopen: Successfully opened %s\n", filename);
     return file;
 }
 
-size_t myfread(void* ptr, size_t size, size_t count, MYFILE* file) {
+size_t fread(void* ptr, size_t size, size_t count, FILE* file) {
     if (!ptr || !file || !file->exists) {
-        if (0) printf("myfread: Invalid parameters: ptr=%p, file=%p, exists=%d\n", 
+        if (0) printf("fread: Invalid parameters: ptr=%p, file=%p, exists=%d\n", 
                ptr, file, file ? file->exists : 0);
         return 0;
     }
     
     const size_t total_bytes = size * count;
-    if (0) printf("myfread: Reading %zu bytes at position %d from %s\n", 
+    if (0) printf("fread: Reading %zu bytes at position %d from %s\n", 
            total_bytes, file->position, file->filename);
     
     #ifdef __EMSCRIPTEN__
@@ -141,25 +141,25 @@ size_t myfread(void* ptr, size_t size, size_t count, MYFILE* file) {
                          ptr,
                          &status);
     
-    if (0) printf("myfread: Read status: %d\n", status);
+    if (0) printf("fread: Read status: %d\n", status);
     
     if (status > 0) {
         file->position += status;
-        if (0) printf("myfread: Successfully read %d bytes, new position: %d\n", 
+        if (0) printf("fread: Successfully read %d bytes, new position: %d\n", 
                status, file->position);
         return status / size;
     } else {
-        file->error_state = MYFILE_ERROR_NETWORK;
-        if (0) printf("myfread: Network error occurred\n");
+        file->error_state = FILE_ERROR_NETWORK;
+        if (0) printf("fread: Network error occurred\n");
         return 0;
     }
     #else
-    file->error_state = MYFILE_ERROR_INVALID;
+    file->error_state = FILE_ERROR_INVALID;
     return 0;
     #endif
 }
 
-int myfseek(MYFILE* file, int32_t offset, int origin) {
+int fseek(FILE* file, int32_t offset, int origin) {
     if (!file || !file->exists) {
         return -1;
     }
@@ -187,21 +187,21 @@ int myfseek(MYFILE* file, int32_t offset, int origin) {
     return 0;
 }
 
-int32_t myftell(MYFILE* file) {
+int32_t ftell(FILE* file) {
     if (!file || !file->exists) {
         return -1;
     }
     return file->position;
 }
 
-int myferror(MYFILE* file) {
+int ferror(FILE* file) {
     if (!file || !file->exists) {
-        return MYFILE_ERROR_INVALID;
+        return FILE_ERROR_INVALID;
     }
     return file->error_state;
 }
 
-int myfclose(MYFILE* file) {
+int fclose(FILE* file) {
     if (!file || !file->exists) {
         return -1;
     }
@@ -214,7 +214,7 @@ int myfclose(MYFILE* file) {
     return 0;
 }
 
-int myfeof(MYFILE* file) {
+int feof(FILE* file) {
     if (!file || !file->exists) {
         return 1;
     }
@@ -228,15 +228,15 @@ int myfeof(MYFILE* file) {
 
 const char* myfile_strerror(int error_code) {
     switch (error_code) {
-        case MYFILE_ERROR_NONE:
+        case FILE_ERROR_NONE:
             return "No error";
-        case MYFILE_ERROR_NOT_FOUND:
+        case FILE_ERROR_NOT_FOUND:
             return "File not found";
-        case MYFILE_ERROR_NETWORK:
+        case FILE_ERROR_NETWORK:
             return "Network error";
-        case MYFILE_ERROR_TIMEOUT:
+        case FILE_ERROR_TIMEOUT:
             return "Operation timed out";
-        case MYFILE_ERROR_INVALID:
+        case FILE_ERROR_INVALID:
             return "Invalid operation";
         default:
             return "Unknown error";

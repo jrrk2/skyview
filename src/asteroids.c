@@ -172,7 +172,7 @@ void scan_for_oppositions(settings *s, double jd_min, double jd_max, double jd_s
     }
 }
 
-int main(int argc, char **argv) {
+int asteroids_main(int argc, char **argv) {
     char help_string[LSTR_LENGTH], version_string[FNAME_LENGTH], version_string_underline[FNAME_LENGTH];
     int i, inputs_read = 0;
     settings s_model;

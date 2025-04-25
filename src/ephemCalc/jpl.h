@@ -22,6 +22,15 @@
 #ifndef JPL_H
 #define JPL_H 1
 
+extern char *datadir, *srcdir;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int ephem_main(const char *data, const char *src);
+double *ephem(const char *body, double jd, double latitude, double longitude);
+
 void jpl_computeXYZ(int body_id, double jd, double *x, double *y, double *z);
 
 void jpl_computeEphemeris(int bodyId, double jd, double *x, double *y, double *z, double *ra, double *dec,
@@ -29,5 +38,9 @@ void jpl_computeEphemeris(int bodyId, double jd, double *x, double *y, double *z
                           double *earthDist, double *sunAngDist, double *theta_ESO, double *eclipticLongitude,
                           double *eclipticLatitude, double *eclipticDistance, double ra_dec_epoch,
                           int do_topocentric_correction, double topocentric_latitude, double topocentric_longitude);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif
