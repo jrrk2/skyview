@@ -7,12 +7,6 @@
 #include <QMatrix3x3>
 #include <QVector3D>
 
-SkyViewController::~SkyViewController()
-{
-    delete m_location;
-    stopSensors();
-}
-
 double SkyViewController::azimuth() const
 {
     return m_azimuth;
@@ -146,16 +140,6 @@ void SkyViewController::addCustomDSO(const QString &name, double ra, double dec,
     
     m_dsoObjects.append(dso);
     updateVisibleDSOs();
-}
-
-void SkyViewController::startSensors()
-{
-    m_sensorBridge->startSensors();
-}
-
-void SkyViewController::stopSensors()
-{
-    m_sensorBridge->stopSensors();
 }
 
 // Matrix filtering implementation
@@ -584,10 +568,28 @@ void SkyViewController::updateSolarSystemObjects()
     emit visibleSolarSystemObjectsChanged();
 }
 
-// Modify the initialization in the constructor to properly initialize the SolarSystemCalculator
+// Same for altitude changes
+void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
+    // Store the raw matrix
+    m_rotationMatrix = matrix;
+    
+    // Apply our histogram-based filtering
+    filterMatrixComponents(matrix);
+    
+    // Also update solar system objects when orientation changes
+    updateSolarSystemObjects();
+    
+    // Emit signal for debugging purposes
+    emit debugDataChanged();
+}
+
+// Constructor modifications
 SkyViewController::SkyViewController(QObject *parent)
     : QObject(parent),
       m_sensorBridge(new IOSSensorBridge(this)),
+      m_compassBridge(new CompassBridge(this)),
+      m_useNativeCompass(true),  // Default to using native compass
+      m_headingAccuracy(0.0),
       m_solarSystemCalculator(new SolarSystemCalculator(this)),
       m_azimuth(0.0),
       m_altitude(0.0),
@@ -606,6 +608,11 @@ SkyViewController::SkyViewController(QObject *parent)
     connect(m_sensorBridge, &IOSSensorBridge::locationAuthorizationChanged, this, &SkyViewController::onLocationAuthorizationChanged);
     connect(m_sensorBridge, &IOSSensorBridge::locationMetadataChanged, this, &SkyViewController::onLocationMetadataChanged);
     
+    // Connect compass bridge signals
+    connect(m_compassBridge, &CompassBridge::headingChanged, this, &SkyViewController::onCompassHeadingChanged);
+    connect(m_compassBridge, &CompassBridge::calibrationChanged, this, &SkyViewController::onCompassCalibrationChanged);
+    connect(m_compassBridge, &CompassBridge::headingAccuracyChanged, this, &SkyViewController::onCompassAccuracyChanged);
+    
     // Load some default DSOs
     loadDefaultDSOs();
     
@@ -622,27 +629,117 @@ SkyViewController::SkyViewController(QObject *parent)
     m_lastMatrixUpdateTime.start();
 }
 
-// Also, make sure the following method updates both DSOs and planets when the direction changes
-void SkyViewController::onAzimuthChanged(double azimuth)
+// Additional destructor cleanup for CompassBridge
+SkyViewController::~SkyViewController()
 {
-    // Update compass direction
-    m_azimuth = azimuth;
-    emit azimuthChanged(m_azimuth);
-    updateVisibleDSOs();
-    updateSolarSystemObjects(); // Also update planets when direction changes
+    delete m_location;
+    stopSensors();
+    
+    // CompassBridge is a QObject with parent, so Qt will delete it
 }
 
-// Same for altitude changes
-void SkyViewController::onRotationMatrixChanged(const RotationMatrix& matrix) {
-    // Store the raw matrix
-    m_rotationMatrix = matrix;
+bool SkyViewController::useNativeCompass() const
+{
+    return m_useNativeCompass;
+}
+
+double SkyViewController::headingAccuracy() const
+{
+    return m_headingAccuracy;
+}
+
+void SkyViewController::setUseNativeCompass(bool value)
+{
+    if (m_useNativeCompass != value) {
+        m_useNativeCompass = value;
+        
+        if (m_useNativeCompass) {
+            // Start the native compass
+            m_compassBridge->startCompass();
+        } else {
+            // Stop the native compass, rely on device motion sensors
+            m_compassBridge->stopCompass();
+        }
+        
+        emit useNativeCompassChanged(m_useNativeCompass);
+    }
+}
+
+void SkyViewController::resetCompassCalibration()
+{
+    m_compassBridge->resetCalibration();
+}
+
+// Modify startSensors to also start compass
+void SkyViewController::startSensors()
+{
+    m_sensorBridge->startSensors();
     
-    // Apply our histogram-based filtering
-    filterMatrixComponents(matrix);
+    if (m_useNativeCompass) {
+        m_compassBridge->startCompass();
+    }
+}
+
+// Modify stopSensors to also stop compass
+void SkyViewController::stopSensors()
+{
+    m_sensorBridge->stopSensors();
+    m_compassBridge->stopCompass();
+}
+
+void SkyViewController::onCompassHeadingChanged(double heading)
+{
+    if (m_useNativeCompass) {
+        // Apply smoothing to the heading changes
+        smoothHeadingChange(heading);
+    }
+}
+
+void SkyViewController::onCompassCalibrationChanged(bool calibrating)
+{
+    if (calibrating) {
+        m_locationStatus = "Calibrating compass...";
+    } else {
+        m_locationStatus = "Compass ready";
+    }
     
-    // Also update solar system objects when orientation changes
-    updateSolarSystemObjects();
+    emit locationStatusChanged(m_locationStatus);
+}
+
+void SkyViewController::onCompassAccuracyChanged(double accuracy)
+{
+    m_headingAccuracy = accuracy;
+    emit headingAccuracyChanged(accuracy);
+}
+
+// Modify onAzimuthChanged to respect the native compass setting
+void SkyViewController::onAzimuthChanged(double azimuth)
+{
+    // Only update if not using native compass
+    if (!m_useNativeCompass) {
+        m_azimuth = azimuth;
+        emit azimuthChanged(m_azimuth);
+        updateVisibleDSOs();
+        updateSolarSystemObjects();
+    }
+}
+
+// Add a smoothing function for heading changes to reduce jitter
+void SkyViewController::smoothHeadingChange(double newHeading)
+{
+    // Apply basic hysteresis filter to reduce small jitters
+    static const double THRESHOLD = 0.5; // degrees
     
-    // Emit signal for debugging purposes
-    emit debugDataChanged();
+    // Handle heading wrap-around (0-360 degrees)
+    double diff = newHeading - m_azimuth;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    
+    if (qAbs(diff) > THRESHOLD) {
+        // Update the azimuth with new heading
+        m_azimuth = newHeading;
+        emit azimuthChanged(m_azimuth);
+        updateVisibleDSOs();
+        updateSolarSystemObjects();
+    }
 }

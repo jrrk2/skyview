@@ -40,6 +40,7 @@ SOURCES += \
     
 HEADERS += \
     skyviewcontroller.h \
+    CompassBridge.h \
     IOSSensorBridge.h \
     AstronomyCalculator.h \
     SolarSystemCalculator.h \
@@ -74,8 +75,7 @@ ios {
 
     DEFINES += SRCDIR=srcdir DATADIR=datadir DEBUG=1 MEMDEBUG1=0 MEMDEBUG2=0 DCFVERSION=\\\"4.0\\\" DATE=\\\"23/09/2024\\\"
     INCLUDEPATH += src /opt/homebrew/Cellar/gsl/2.8/include
-    OBJECTIVE_SOURCES += \
-        IOSSensorBridge.mm
+    OBJECTIVE_SOURCES += IOSSensorBridge.mm CompassBridge.mm
         
     # Link required iOS frameworks
     LIBS += -framework CoreMotion -framework CoreLocation

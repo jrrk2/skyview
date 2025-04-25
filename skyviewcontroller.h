@@ -13,6 +13,7 @@
 #include <QUrl>
 #include "IOSSensorBridge.h"
 #include "AstronomyCalculator.h"
+#include "CompassBridge.h" // Add compass bridge header
 
 // Forward declarations
 class SolarSystemCalculator;
@@ -54,8 +55,10 @@ class SkyViewController : public QObject
     Q_PROPERTY(double declination READ declination NOTIFY declinationChanged)
     Q_PROPERTY(QString formattedRA READ formattedRA NOTIFY rightAscensionChanged)
     Q_PROPERTY(QString formattedDEC READ formattedDEC NOTIFY declinationChanged)
-    // Add this property to expose solar system objects to QML
     Q_PROPERTY(QVariantList visibleSolarSystemObjects READ getVisibleSolarSystemObjects NOTIFY visibleSolarSystemObjectsChanged)
+    // Add new compass bridge property
+    Q_PROPERTY(bool useNativeCompass READ useNativeCompass WRITE setUseNativeCompass NOTIFY useNativeCompassChanged)
+    Q_PROPERTY(double headingAccuracy READ headingAccuracy NOTIFY headingAccuracyChanged)
     
 public:
     explicit SkyViewController(QObject *parent = nullptr);
@@ -88,13 +91,18 @@ public:
     void filterRotationMatrix(const RotationMatrix& newMatrix);    
     // Helper method to extract azimuth and altitude from filtered matrix
     void updateOrientationFromMatrix();
+    // Get compass bridge status
+    bool useNativeCompass() const;
+    double headingAccuracy() const;
+    
     // Setters
     void setLocation(const GeoCoordinate &location);
+    void setUseNativeCompass(bool value);
     
     // Q_INVOKABLE methods that can be called from QML
     Q_INVOKABLE void addCustomDSO(const QString &name, double ra, double dec, 
                                     const QUrl &imageUrl, double size, 
-				  int croppedWidth, int croppedHeight, double scaleFactor);
+                                  int croppedWidth, int croppedHeight, double scaleFactor);
     Q_INVOKABLE void loadDefaultDSOs();
     Q_INVOKABLE void startSensors();
     Q_INVOKABLE void stopSensors();
@@ -103,6 +111,7 @@ public:
     Q_INVOKABLE void requestLocationPermission();
     Q_INVOKABLE QVariantList getVisibleSolarSystemObjects() const;
     Q_INVOKABLE void updateSolarSystemObjects();
+    Q_INVOKABLE void resetCompassCalibration();
     
 signals:
     void azimuthChanged(double azimuth);
@@ -115,8 +124,9 @@ signals:
     void rightAscensionChanged(double ra);
     void declinationChanged(double dec);
     void debugDataChanged();	       
-    // Then add this signal to the signals: section
     void visibleSolarSystemObjectsChanged();
+    void useNativeCompassChanged(bool value);
+    void headingAccuracyChanged(double accuracy);
     
 private slots:
     void onAzimuthChanged(double azimuth);
@@ -126,14 +136,22 @@ private slots:
     void onLocationAuthorizationChanged(bool authorized);
     void onLocationMetadataChanged();
     void updateVisibleDSOs();
+    // Add new slot for compass heading
+    void onCompassHeadingChanged(double heading);
+    void onCompassCalibrationChanged(bool calibrating);
+    void onCompassAccuracyChanged(double accuracy);
     
 private:
     // iOS Sensor Bridge
     IOSSensorBridge *m_sensorBridge;
+    
+    // New CompassBridge
+    CompassBridge *m_compassBridge;
+    bool m_useNativeCompass;
+    double m_headingAccuracy;
 
     // Use AstronomyCalculator for celestial calculations
     SolarSystemCalculator *m_solarSystemCalculator;
-    // And this private member variable to the private: section
     QVariantList m_visibleSolarSystemObjects;
   
     // Current orientation
@@ -168,6 +186,9 @@ private:
     void filterMatrixComponents(const RotationMatrix& newMatrix);
     int findMostFrequentBin(const std::map<int, int>& histogram);
     void processFilteredMatrix(const RotationMatrix& matrix);
+    
+    // Smooth heading changes
+    void smoothHeadingChange(double newHeading);
 };
 
 #endif // SKYVIEWCONTROLLER_H

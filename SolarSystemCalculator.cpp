@@ -609,15 +609,8 @@ void SolarSystemCalculator::updatePositions(double jd, const GeoCoordinate& obse
     // Clear previous positions
     m_visibleObjects.clear();
 
-    // Sun's position (from barycenter)
-    QVector3D sunPos(0, 0, 0);  // Simplified - Sun is approximately at the barycenter
-    
     // Add Sun and Moon (special calculations)
     calculateSunAndMoon(jd, observer);
-    
-    // Get current viewing direction
-    double azimuth = m_controller->azimuth() * DEG_TO_RAD;
-    double altitude = m_controller->altitude() * DEG_TO_RAD;
     
     // Calculate for each planet (existing code)
     for (const SolarSystemObject& object : m_objects) {
